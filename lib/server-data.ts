@@ -438,3 +438,38 @@ export async function getValidation(pair: string): Promise<ValidationRun | null>
     () => getMockValidation(code),
   );
 }
+
+/** Every validation run for one pair (a pair can be validated many times). */
+export async function getValidationsForPair(pair: string): Promise<ValidationRun[]> {
+  const code = pair.toUpperCase();
+  return withFallback(
+    async () => {
+      const rows = await supabaseGet<ValidationRow>("llm_validation_runs", {
+        select: "*",
+        pair_code: `eq.${code}`,
+        order: "created_at.desc",
+        limit: 100,
+      });
+      return rows.map(validationFromRow);
+    },
+    () => {
+      const run = getMockValidation(code);
+      return run ? [run] : [];
+    },
+  );
+}
+
+/** Every validation run across all pairs, newest first (the validation log). */
+export async function getValidationRuns(): Promise<ValidationRun[]> {
+  return withFallback(
+    async () => {
+      const rows = await supabaseGet<ValidationRow>("llm_validation_runs", {
+        select: "*",
+        order: "created_at.desc",
+        limit: 300,
+      });
+      return rows.map(validationFromRow);
+    },
+    () => getMockAllValidations(),
+  );
+}

@@ -70,6 +70,7 @@ export function usePriceObservations(pair: string) {
   });
 }
 
+/** Latest validation per pair (used by the overview audit panel). */
 export function useValidations() {
   return useQuery({
     queryKey: ["validations"],
@@ -82,12 +83,29 @@ export function useValidations() {
   });
 }
 
-export function useValidation(pair: string) {
+/** Every validation run across all pairs (the validation log page). */
+export function useValidationRuns() {
   return useQuery({
-    queryKey: ["validation", pair],
+    queryKey: ["validation-runs"],
     queryFn: async () => {
-      const { data } = await api.get<ValidationRun>(`/validations/${pair}`);
-      return data;
+      const { data } = await api.get<{ as_of_date: string; runs: ValidationRun[] }>(
+        "/validations",
+        { params: { scope: "all" } },
+      );
+      return data.runs;
+    },
+  });
+}
+
+/** All validation runs for a single pair, newest first. */
+export function usePairValidations(pair: string) {
+  return useQuery({
+    queryKey: ["pair-validations", pair],
+    queryFn: async () => {
+      const { data } = await api.get<{ pair: string; runs: ValidationRun[] }>(
+        `/validations/${pair}`,
+      );
+      return data.runs;
     },
     enabled: Boolean(pair),
   });

@@ -1,10 +1,14 @@
 "use client";
 
 import * as React from "react";
+import { usePathname } from "next/navigation";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+
+/** Routes that render standalone, without the sidebar/header chrome. */
+const BARE_ROUTES = ["/login"];
 
 /**
  * The persistent app shell. Rendered once in the root layout so the sidebar
@@ -12,6 +16,11 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
  * pages instead of remounting and snapping back open.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  if (BARE_ROUTES.includes(pathname)) {
+    return <>{children}</>;
+  }
+
   return (
     <SidebarProvider
       style={

@@ -20,7 +20,7 @@ import {
   PairHeaderCard,
   PairSnapshotGrid,
 } from "@/components/regime/pair-snapshot";
-import { ValidationDetail, ValidationSummaryCard } from "@/components/regime/validation";
+import { PairValidations, ValidationSummaryCard } from "@/components/regime/validation";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -28,7 +28,7 @@ import {
   useRegimeHistory,
   useRegimeSnapshot,
   usePriceObservations,
-  useValidation,
+  usePairValidations,
 } from "@/hooks/use-regime";
 
 const TABS = ["snapshot", "charts", "validation"] as const;
@@ -45,7 +45,10 @@ function PairDetail({ code }: { code: string }) {
   const snapshotQuery = useRegimeSnapshot(code);
   const historyQuery = useRegimeHistory(code);
   const priceQuery = usePriceObservations(code);
-  const validationQuery = useValidation(code);
+  const validationsQuery = usePairValidations(code);
+  const validations = validationsQuery.data ?? [];
+  const latestValidation = validations[0];
+  const initialRunId = searchParams.get("run");
 
   const onTabChange = (value: string) => {
     router.replace(`/pairs/${code}?tab=${value}`, { scroll: false });
@@ -86,9 +89,10 @@ function PairDetail({ code }: { code: string }) {
             <TabsContent value="snapshot" className="space-y-4">
               <PairAuditSummary snapshot={snapshotQuery.data} />
               <PairSnapshotGrid snapshot={snapshotQuery.data} />
-              {validationQuery.data && (
+              {latestValidation && (
                 <ValidationSummaryCard
-                  run={validationQuery.data}
+                  run={latestValidation}
+                  runCount={validations.length}
                   href={`/pairs/${code}?tab=validation`}
                 />
               )}
@@ -120,12 +124,10 @@ function PairDetail({ code }: { code: string }) {
             </TabsContent>
 
             <TabsContent value="validation">
-              {validationQuery.isLoading ? (
+              {validationsQuery.isLoading ? (
                 <Skeleton className="h-[320px] rounded-xl" />
-              ) : validationQuery.data ? (
-                <ValidationDetail run={validationQuery.data} />
               ) : (
-                <EmptyState title="No validation run" description={`No LLM validation has been recorded for ${code}.`} />
+                <PairValidations runs={validations} initialRunId={initialRunId} />
               )}
             </TabsContent>
           </Tabs>

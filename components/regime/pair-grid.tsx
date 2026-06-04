@@ -4,7 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { SearchIcon } from "lucide-react";
 
-import { RegimeBadge, SignalBadge } from "@/components/regime/badges";
+import { RegimeBadge } from "@/components/regime/badges";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -13,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatRate, formatSignedPercent, formatVol } from "@/lib/format";
+import { formatRate, formatSignedPercent } from "@/lib/format";
 import { regimeTone } from "@/lib/regime";
 import { cn } from "@/lib/utils";
 import { REGIME_LABELS, type RegimeLabel, type RegimeSnapshot } from "@/lib/types";
@@ -24,60 +25,40 @@ function PairTile({ snapshot }: { snapshot: RegimeSnapshot }) {
   const v = snapshot.current_volatility_readings;
   const tone = regimeTone(v.regime);
   const dc = snapshot.live_spot_rates.day_change_pct;
-  const proximity = Math.min(v.accel_vs_252d / 2.5, 1) * 100;
 
   return (
-    <Link
-      href={`/pairs/${snapshot.pair}`}
-      className={cn(
-        "group relative flex flex-col gap-3 overflow-hidden rounded-xl border p-4 transition-all hover:-translate-y-0.5 hover:shadow-md",
-        tone.surface,
-      )}
-    >
-      <span className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: tone.hex }} />
-
-      <div className="flex items-center justify-between">
-        <span className="font-mono text-base font-semibold">{snapshot.display_pair}</span>
-        <RegimeBadge regime={v.regime} score={v.regime_score} />
-      </div>
-
-      <div className="flex items-end justify-between">
-        <div>
-          <div className="font-mono text-xl font-semibold tabular-nums">
-            {formatRate(snapshot.live_spot_rates.spot_rate)}
+    <Link href={`/pairs/${snapshot.pair}`}>
+      <Card
+        className="gap-0 border-l-4 p-4 transition-colors hover:bg-muted/40"
+        style={{ borderLeftColor: tone.hex }}
+      >
+        <div className="flex items-center justify-between">
+          <span className="font-mono text-base font-semibold">{snapshot.display_pair}</span>
+          <RegimeBadge regime={v.regime} score={v.regime_score} />
+        </div>
+        <div className="mt-3 flex items-end justify-between">
+          <div>
+            <div className="font-mono text-lg font-semibold tabular-nums">
+              {formatRate(snapshot.live_spot_rates.spot_rate)}
+            </div>
+            <div
+              className={cn(
+                "font-mono text-xs tabular-nums",
+                dc != null && dc > 0 && "text-emerald-600 dark:text-emerald-400",
+                dc != null && dc < 0 && "text-red-600 dark:text-red-400",
+              )}
+            >
+              {formatSignedPercent(dc)}
+            </div>
           </div>
-          <div
-            className={cn(
-              "font-mono text-xs tabular-nums",
-              dc != null && dc > 0 && "text-emerald-600 dark:text-emerald-400",
-              dc != null && dc < 0 && "text-red-600 dark:text-red-400",
-            )}
-          >
-            {formatSignedPercent(dc)}
+          <div className="text-right">
+            <div className="text-xs text-muted-foreground">Accel</div>
+            <div className="font-mono text-sm font-medium tabular-nums">
+              {v.accel_vs_252d.toFixed(2)}x
+            </div>
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-[11px] text-muted-foreground">Acceleration</div>
-          <div className="font-mono text-sm font-medium tabular-nums">
-            {v.accel_vs_252d.toFixed(2)}x
-          </div>
-        </div>
-      </div>
-
-      <div className="h-1 overflow-hidden rounded-full bg-background/60">
-        <div
-          className="h-full rounded-full"
-          style={{ width: `${proximity}%`, backgroundColor: tone.hex }}
-          title="Acceleration toward the crisis threshold (2.5×)"
-        />
-      </div>
-
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>
-          Vol 30d <span className="font-mono text-foreground">{formatVol(v.vol_30d)}</span>
-        </span>
-        <SignalBadge signal={snapshot.volatility_trend_signals.composite_signal} />
-      </div>
+      </Card>
     </Link>
   );
 }

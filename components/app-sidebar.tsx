@@ -9,6 +9,8 @@ import {
   GaugeIcon,
   LayoutDashboardIcon,
   LifeBuoyIcon,
+  LogOutIcon,
+  SparklesIcon,
 } from "lucide-react";
 
 import {
@@ -25,6 +27,7 @@ import {
 const NAV_MAIN = [
   { title: "Overview", url: "/", icon: LayoutDashboardIcon },
   { title: "Pair Review", url: "/pairs", icon: GaugeIcon },
+  { title: "Validation Runs", url: "/validation", icon: SparklesIcon },
   { title: "Data Health", url: "/data-health", icon: DatabaseIcon },
 ];
 
@@ -98,6 +101,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
 
       <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <form action="/logout" method="post" className="w-full">
+              <SidebarMenuButton
+                type="submit"
+                tooltip="Sign out"
+                className="h-9 text-muted-foreground group-data-[collapsible=icon]:size-9!"
+              >
+                <LogOutIcon />
+                <span>Sign out</span>
+              </SidebarMenuButton>
+            </form>
+          </SidebarMenuItem>
+        </SidebarMenu>
         <div className="px-2 py-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
           Deterministic engine · v0.1
         </div>

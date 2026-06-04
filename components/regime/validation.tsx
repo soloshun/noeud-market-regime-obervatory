@@ -1,8 +1,11 @@
+"use client";
+
+import * as React from "react";
 import Link from "next/link";
 import { ExternalLinkIcon, SparklesIcon } from "lucide-react";
 
 import { ActionBadge, RegimeBadge, ValidationStatusBadge } from "@/components/regime/badges";
-import { Stat } from "@/components/regime/primitives";
+import { EmptyState, Stat } from "@/components/regime/primitives";
 import {
   Accordion,
   AccordionContent,
@@ -19,7 +22,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDate, formatNumber, titleCase } from "@/lib/format";
+import { formatDate, formatDateTime, formatNumber, titleCase } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { ValidationResult, ValidationRun } from "@/lib/types";
 
 /** Pretty-print a string if it is valid JSON, otherwise return it unchanged. */
@@ -42,13 +46,15 @@ function ConfidenceBar({ value }: { value: number }) {
   );
 }
 
-/** Compact validation card — used on the pair detail page and the validation list. */
+/** Compact validation card — shows the latest run, used on the snapshot tab. */
 export function ValidationSummaryCard({
   run,
   href,
+  runCount = 1,
 }: {
   run: ValidationRun;
   href?: string;
+  runCount?: number;
 }) {
   const r = run.result;
   return (
@@ -59,9 +65,10 @@ export function ValidationSummaryCard({
             <CardTitle className="flex items-center gap-2 text-sm">
               <SparklesIcon className="size-4 text-muted-foreground" />
               LLM Validation
+              <span className="font-normal text-muted-foreground">· latest</span>
             </CardTitle>
             <CardDescription className="mt-1">
-              {run.model_name} · {formatDate(run.as_of_date)}
+              {run.model_name} · {formatDateTime(run.created_at)}
             </CardDescription>
           </div>
           <ValidationStatusBadge status={r.status} />
@@ -80,7 +87,8 @@ export function ValidationSummaryCard({
         </div>
         {href && (
           <Link href={href} className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
-            View full validation trace <ExternalLinkIcon className="size-3.5" />
+            {runCount > 1 ? `View all ${runCount} validation runs` : "View full validation trace"}
+            <ExternalLinkIcon className="size-3.5" />
           </Link>
         )}
       </CardContent>
@@ -286,6 +294,69 @@ export function ValidationDetail({ run }: { run: ValidationRun }) {
           </Accordion>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+/**
+ * Renders every validation run recorded for a pair. A pair can be validated
+ * many times (re-runs, different models, different days), so this shows a run
+ * selector when there is more than one, with the full trace for the selected run.
+ */
+export function PairValidations({
+  runs,
+  initialRunId,
+}: {
+  runs: ValidationRun[];
+  initialRunId?: string | null;
+}) {
+  const ordered = React.useMemo(
+    () => [...runs].sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? "")),
+    [runs],
+  );
+  const [selectedId, setSelectedId] = React.useState<string | undefined>(
+    initialRunId ?? ordered[0]?.id,
+  );
+
+  if (ordered.length === 0) {
+    return (
+      <EmptyState
+        title="No validation run yet"
+        description="No LLM validation has been recorded for this pair. Runs will appear here once the intelligence layer scores a snapshot."
+      />
+    );
+  }
+
+  const selected = ordered.find((r) => r.id === selectedId) ?? ordered[0];
+
+  return (
+    <div className="space-y-4">
+      {ordered.length > 1 && (
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {ordered.length} validation runs · newest first
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {ordered.map((run) => (
+              <button
+                key={run.id}
+                onClick={() => setSelectedId(run.id)}
+                className={cn(
+                  "flex min-w-[150px] flex-col gap-1.5 rounded-lg border px-3 py-2 text-left transition-colors hover:bg-muted/40",
+                  run.id === selected.id ? "border-primary bg-muted/40" : "border-border",
+                )}
+              >
+                <span className="font-mono text-xs font-medium">
+                  {formatDateTime(run.created_at)}
+                </span>
+                <span className="truncate text-xs text-muted-foreground">{run.model_name}</span>
+                <ValidationStatusBadge status={run.status} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <ValidationDetail run={selected} />
     </div>
   );
 }
