@@ -51,6 +51,7 @@ export function SpotHistoryChart({
   pair: string;
 }) {
   const data = observations.map((p) => ({ date: p.observed_on, spot: p.close_display }));
+  const single = data.length < 2;
   return (
     <Card>
       <CardHeader>
@@ -75,7 +76,7 @@ export function SpotHistoryChart({
             <ChartTooltip
               content={<ChartTooltipContent labelFormatter={(v) => shortDate(String(v))} formatter={(val) => formatRate(Number(val))} />}
             />
-            <Area dataKey="spot" type="monotone" stroke="var(--color-spot)" strokeWidth={2} fill="url(#spotFill)" />
+            <Area dataKey="spot" type="monotone" stroke="var(--color-spot)" strokeWidth={2} fill="url(#spotFill)" dot={single ? { r: 3, fill: "var(--color-spot)" } : false} />
           </AreaChart>
         </ChartContainer>
       </CardContent>
@@ -83,8 +84,14 @@ export function SpotHistoryChart({
   );
 }
 
+const REGIME_BAND_LABELS: RegimeLabel[] = ["NORMAL", "ELEVATED", "STRESSED", "CRISIS"];
+
 export function AccelerationHistoryChart({ history }: { history: RegimeHistoryPoint[] }) {
   const data = history.map((p) => ({ date: p.as_of_date, accel: p.acceleration_vs_252d }));
+  const maxAccel = data.reduce((m, d) => Math.max(m, d.accel), 0);
+  const yMax = Math.max(2.7, Math.ceil(maxAccel * 1.15 * 10) / 10);
+  const single = data.length < 2;
+
   return (
     <Card>
       <CardHeader>
@@ -96,23 +103,36 @@ export function AccelerationHistoryChart({ history }: { history: RegimeHistoryPo
           config={{ accel: { label: "Acceleration", color: "var(--chart-4)" } }}
           className="aspect-auto h-[240px] w-full"
         >
-          <LineChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
+          <LineChart data={data} margin={{ top: 8, right: 48, left: 4, bottom: 0 }}>
             <CartesianGrid vertical={false} />
             <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={40} fontSize={11} tickFormatter={shortDate} />
-            <YAxis tickLine={false} axisLine={false} width={40} domain={[0, "auto"]} fontSize={11} tickFormatter={(v) => `${formatNumber(Number(v), 1)}x`} />
+            <YAxis tickLine={false} axisLine={false} width={40} domain={[0, yMax]} fontSize={11} tickFormatter={(v) => `${formatNumber(Number(v), 1)}x`} />
             {REGIME_BREAKPOINTS.map((bp, i) => (
               <ReferenceLine
                 key={bp}
                 y={bp}
-                stroke={REGIME_TONES[(["NORMAL", "ELEVATED", "STRESSED", "CRISIS"] as RegimeLabel[])[i]].hex}
-                strokeDasharray="3 3"
-                strokeOpacity={0.5}
+                stroke={REGIME_TONES[REGIME_BAND_LABELS[i]].hex}
+                strokeDasharray="4 4"
+                strokeOpacity={0.6}
+                label={{
+                  value: REGIME_BAND_LABELS[i],
+                  position: "right",
+                  fontSize: 9,
+                  fill: REGIME_TONES[REGIME_BAND_LABELS[i]].hex,
+                }}
               />
             ))}
             <ChartTooltip
               content={<ChartTooltipContent labelFormatter={(v) => shortDate(String(v))} formatter={(val) => `${formatNumber(Number(val), 2)}x`} />}
             />
-            <Line dataKey="accel" type="monotone" stroke="var(--color-accel)" strokeWidth={2} dot={false} />
+            <Line
+              dataKey="accel"
+              type="monotone"
+              stroke="var(--color-accel)"
+              strokeWidth={2}
+              dot={single ? { r: 4, fill: "var(--color-accel)" } : false}
+              activeDot={{ r: 5 }}
+            />
           </LineChart>
         </ChartContainer>
       </CardContent>
@@ -127,6 +147,7 @@ export function VolatilityHistoryChart({ history }: { history: RegimeHistoryPoin
     vol90: p.vol_90d,
     vol252: p.vol_252d,
   }));
+  const dot = data.length < 2 ? { r: 3 } : false;
   return (
     <Card>
       <CardHeader>
@@ -147,9 +168,9 @@ export function VolatilityHistoryChart({ history }: { history: RegimeHistoryPoin
             <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={40} fontSize={11} tickFormatter={shortDate} />
             <YAxis tickLine={false} axisLine={false} width={44} fontSize={11} tickFormatter={(v) => formatVol(Number(v), 0)} />
             <ChartTooltip content={<ChartTooltipContent labelFormatter={(v) => shortDate(String(v))} formatter={(val) => formatVol(Number(val))} />} />
-            <Line dataKey="vol30" type="monotone" stroke="var(--color-vol30)" strokeWidth={2} dot={false} />
-            <Line dataKey="vol90" type="monotone" stroke="var(--color-vol90)" strokeWidth={2} dot={false} />
-            <Line dataKey="vol252" type="monotone" stroke="var(--color-vol252)" strokeWidth={2} dot={false} />
+            <Line dataKey="vol30" type="monotone" stroke="var(--color-vol30)" strokeWidth={2} dot={dot} />
+            <Line dataKey="vol90" type="monotone" stroke="var(--color-vol90)" strokeWidth={2} dot={dot} />
+            <Line dataKey="vol252" type="monotone" stroke="var(--color-vol252)" strokeWidth={2} dot={dot} />
           </LineChart>
         </ChartContainer>
       </CardContent>
@@ -163,6 +184,7 @@ export function TailRiskHistoryChart({ history }: { history: RegimeHistoryPoint[
     var30: p.hist_var_99_30d,
     fatTail: p.fat_tail_ratio,
   }));
+  const dot = data.length < 2 ? { r: 3 } : false;
   return (
     <Card>
       <CardHeader>
@@ -195,8 +217,8 @@ export function TailRiskHistoryChart({ history }: { history: RegimeHistoryPoint[
                 />
               }
             />
-            <Line yAxisId="var" dataKey="var30" type="monotone" stroke="var(--color-var30)" strokeWidth={2} dot={false} />
-            <Line yAxisId="ratio" dataKey="fatTail" type="monotone" stroke="var(--color-fatTail)" strokeWidth={2} dot={false} />
+            <Line yAxisId="var" dataKey="var30" type="monotone" stroke="var(--color-var30)" strokeWidth={2} dot={dot} />
+            <Line yAxisId="ratio" dataKey="fatTail" type="monotone" stroke="var(--color-fatTail)" strokeWidth={2} dot={dot} />
           </LineChart>
         </ChartContainer>
       </CardContent>

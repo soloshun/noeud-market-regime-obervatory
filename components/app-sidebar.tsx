@@ -9,7 +9,6 @@ import {
   GaugeIcon,
   LayoutDashboardIcon,
   LifeBuoyIcon,
-  SparklesIcon,
 } from "lucide-react";
 
 import {
@@ -26,7 +25,6 @@ import {
 const NAV_MAIN = [
   { title: "Overview", url: "/", icon: LayoutDashboardIcon },
   { title: "Pair Review", url: "/pairs", icon: GaugeIcon },
-  { title: "LLM Validation", url: "/validation", icon: SparklesIcon },
   { title: "Data Health", url: "/data-health", icon: DatabaseIcon },
 ];
 

@@ -89,7 +89,7 @@ function PairDetail({ code }: { code: string }) {
               {validationQuery.data && (
                 <ValidationSummaryCard
                   run={validationQuery.data}
-                  href={`/validation/${code}`}
+                  href={`/pairs/${code}?tab=validation`}
                 />
               )}
             </TabsContent>

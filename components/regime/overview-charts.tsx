@@ -29,7 +29,7 @@ export function RegimeDistributionChart({ snapshots }: { snapshots: RegimeSnapsh
           <BarChart accessibilityLayer data={data} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
             <XAxis dataKey="regime" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} />
             <YAxis tickLine={false} axisLine={false} width={28} allowDecimals={false} fontSize={11} />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent hideIndicator />} />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" nameKey="regime" />} />
             <Bar dataKey="count" radius={6}>
               <LabelList dataKey="count" position="top" className="fill-foreground" fontSize={11} />
               {data.map((d) => (
@@ -87,8 +87,19 @@ export function AccelerationLeaderboard({ snapshots }: { snapshots: RegimeSnapsh
               cursor={false}
               content={
                 <ChartTooltipContent
-                  hideIndicator
-                  formatter={(value) => `${formatNumber(Number(value), 2)}x`}
+                  hideLabel
+                  formatter={(value, _name, item) => (
+                    <span className="flex w-full items-center gap-2">
+                      <span
+                        className="size-2.5 shrink-0 rounded-[2px]"
+                        style={{ backgroundColor: item?.payload?.fill }}
+                      />
+                      <span className="text-muted-foreground">{item?.payload?.pair}</span>
+                      <span className="ml-auto font-mono font-medium text-foreground">
+                        {formatNumber(Number(value), 2)}x
+                      </span>
+                    </span>
+                  )}
                 />
               }
             />

@@ -2,12 +2,25 @@
 
 import * as React from "react";
 import {
+  type ColumnDef,
+  type SortingState,
+  flexRender,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import {
+  ArrowDownIcon,
+  ArrowUpDownIcon,
+  ArrowUpIcon,
   CheckCircle2Icon,
   DatabaseIcon,
   RefreshCwIcon,
   XCircleIcon,
 } from "lucide-react";
 
+import { TablePagination } from "@/components/regime/table-pagination";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -91,22 +104,109 @@ export function DataHealthCards({ runs }: { runs: ProviderRun[] }) {
   );
 }
 
+function SortHeader({
+  label,
+  onClick,
+  sorted,
+  align = "left",
+}: {
+  label: string;
+  onClick: (event?: unknown) => void;
+  sorted: false | "asc" | "desc";
+  align?: "left" | "right";
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn("flex items-center gap-1 text-xs font-medium hover:text-foreground", align === "right" && "ml-auto")}
+    >
+      {label}
+      {sorted === "asc" ? (
+        <ArrowUpIcon className="size-3" />
+      ) : sorted === "desc" ? (
+        <ArrowDownIcon className="size-3" />
+      ) : (
+        <ArrowUpDownIcon className="size-3 opacity-40" />
+      )}
+    </button>
+  );
+}
+
 export function ProviderRunsTable({ runs }: { runs: ProviderRun[] }) {
   const [pair, setPair] = React.useState<string>("ALL");
+  const [sorting, setSorting] = React.useState<SortingState>([
+    { id: "completed_at", desc: true },
+  ]);
   const pairs = React.useMemo(
     () => Array.from(new Set(runs.map((r) => r.pair_code))).sort(),
     [runs],
   );
-  const filtered = runs
-    .filter((r) => pair === "ALL" || r.pair_code === pair)
-    .sort((a, b) => (b.completed_at ?? "").localeCompare(a.completed_at ?? ""));
+  const data = React.useMemo(
+    () => runs.filter((r) => pair === "ALL" || r.pair_code === pair),
+    [runs, pair],
+  );
+
+  const columns = React.useMemo<ColumnDef<ProviderRun>[]>(
+    () => [
+      {
+        accessorKey: "pair_code",
+        header: ({ column }) => <SortHeader label="Pair" sorted={column.getIsSorted()} onClick={column.getToggleSortingHandler()!} />,
+        cell: ({ row }) => <span className="font-mono font-medium">{row.original.pair_code}</span>,
+      },
+      {
+        accessorKey: "provider_name",
+        header: () => <span className="text-xs font-medium">Provider</span>,
+        enableSorting: false,
+        cell: ({ row }) => <span className="text-muted-foreground">{row.original.provider_name}</span>,
+      },
+      {
+        accessorKey: "requested_at",
+        header: ({ column }) => <SortHeader label="Requested" sorted={column.getIsSorted()} onClick={column.getToggleSortingHandler()!} />,
+        cell: ({ row }) => <span className="text-muted-foreground">{formatDate(row.original.requested_at)}</span>,
+      },
+      {
+        accessorKey: "completed_at",
+        header: ({ column }) => <SortHeader label="Completed" sorted={column.getIsSorted()} onClick={column.getToggleSortingHandler()!} />,
+        cell: ({ row }) => <span className="text-muted-foreground">{formatDateTime(row.original.completed_at)}</span>,
+      },
+      {
+        accessorKey: "status",
+        header: ({ column }) => <SortHeader label="Status" sorted={column.getIsSorted()} onClick={column.getToggleSortingHandler()!} />,
+        cell: ({ row }) => <StatusCell status={row.original.status} />,
+      },
+      {
+        accessorKey: "row_count",
+        header: ({ column }) => <SortHeader label="Rows" align="right" sorted={column.getIsSorted()} onClick={column.getToggleSortingHandler()!} />,
+        cell: ({ row }) => <div className="text-right font-mono tabular-nums">{row.original.row_count}</div>,
+      },
+      {
+        id: "mode",
+        header: () => <span className="text-xs font-medium">Mode</span>,
+        enableSorting: false,
+        cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{modeOf(row.original)}</span>,
+      },
+    ],
+    [],
+  );
+
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const table = useReactTable({
+    data,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 20 } },
+  });
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <div>
           <CardTitle>Provider Runs</CardTitle>
-          <CardDescription>yfinance ingestion runs · {filtered.length} shown</CardDescription>
+          <CardDescription>yfinance ingestion runs · {data.length} shown</CardDescription>
         </div>
         <Select value={pair} onValueChange={setPair}>
           <SelectTrigger size="sm" className="w-32"><SelectValue /></SelectTrigger>
@@ -119,34 +219,39 @@ export function ProviderRunsTable({ runs }: { runs: ProviderRun[] }) {
         </Select>
       </CardHeader>
       <CardContent className="px-0">
-        <div className="max-h-[560px] overflow-auto">
-          <Table>
-            <TableHeader className="sticky top-0 bg-card">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="px-4">Pair</TableHead>
-                <TableHead>Provider</TableHead>
-                <TableHead>Requested</TableHead>
-                <TableHead>Completed</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Rows</TableHead>
-                <TableHead className="px-4">Mode</TableHead>
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((hg) => (
+              <TableRow key={hg.id} className="hover:bg-transparent">
+                {hg.headers.map((header) => (
+                  <TableHead key={header.id} className="px-4">
+                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
+                ))}
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="px-4 font-mono font-medium">{r.pair_code}</TableCell>
-                  <TableCell className="text-muted-foreground">{r.provider_name}</TableCell>
-                  <TableCell className="text-muted-foreground">{formatDate(r.requested_at)}</TableCell>
-                  <TableCell className="text-muted-foreground">{formatDateTime(r.completed_at)}</TableCell>
-                  <TableCell><StatusCell status={r.status} /></TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">{r.row_count}</TableCell>
-                  <TableCell className="px-4 font-mono text-xs text-muted-foreground">{modeOf(r)}</TableCell>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center text-sm text-muted-foreground">
+                  No provider runs found.
+                </TableCell>
+              </TableRow>
+            ) : (
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id} className="px-4 py-2.5">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              ))
+            )}
+          </TableBody>
+        </Table>
+        <TablePagination table={table} />
       </CardContent>
     </Card>
   );

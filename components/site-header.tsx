@@ -12,7 +12,6 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 
 const TITLES: Record<string, string> = {
   pairs: "Pair Review",
-  validation: "LLM Validation",
   "data-health": "Data Health",
   help: "Help & Methodology",
 };
@@ -27,8 +26,8 @@ export function SiteHeader() {
 
   // On a per-pair detail route, show the pair switcher in the header.
   const detail =
-    (root === "pairs" || root === "validation") && segments[1]
-      ? { pair: segments[1].toUpperCase(), basePath: `/${root}`, preserveQuery: root === "pairs" }
+    root === "pairs" && segments[1]
+      ? { pair: segments[1].toUpperCase(), basePath: "/pairs", preserveQuery: true }
       : null;
 
   return (

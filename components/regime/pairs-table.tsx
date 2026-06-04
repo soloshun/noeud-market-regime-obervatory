@@ -7,12 +7,14 @@ import {
   type SortingState,
   flexRender,
   getCoreRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon, SearchIcon } from "lucide-react";
 
 import { RegimeBadge, SignalBadge } from "@/components/regime/badges";
+import { TablePagination } from "@/components/regime/table-pagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -211,6 +213,8 @@ export function PairsTable({ snapshots }: { snapshots: RegimeSnapshot[] }) {
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 20 } },
   });
 
   return (
@@ -296,6 +300,7 @@ export function PairsTable({ snapshots }: { snapshots: RegimeSnapshot[] }) {
             )}
           </TableBody>
         </Table>
+        <TablePagination table={table} />
       </CardContent>
     </Card>
   );

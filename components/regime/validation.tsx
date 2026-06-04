@@ -22,6 +22,17 @@ import {
 import { formatDate, formatNumber, titleCase } from "@/lib/format";
 import type { ValidationResult, ValidationRun } from "@/lib/types";
 
+/** Pretty-print a string if it is valid JSON, otherwise return it unchanged. */
+function formatMaybeJson(raw: string): string {
+  const trimmed = raw?.trim();
+  if (!trimmed || (trimmed[0] !== "{" && trimmed[0] !== "[")) return raw;
+  try {
+    return JSON.stringify(JSON.parse(trimmed), null, 2);
+  } catch {
+    return raw;
+  }
+}
+
 function ConfidenceBar({ value }: { value: number }) {
   return (
     <div className="flex items-center gap-2">
@@ -97,9 +108,9 @@ function PointList({ title, points, tone }: { title: string; points: string[]; t
 function ScorerRow({ result }: { result: ValidationResult }) {
   return (
     <TableRow>
-      <TableCell className="font-mono text-xs">{result.scorer_model}</TableCell>
+      <TableCell className="px-6 font-mono text-xs">{result.scorer_model}</TableCell>
       <TableCell><ValidationStatusBadge status={result.status} /></TableCell>
-      <TableCell className="text-right"><ConfidenceBar value={result.confidence} /></TableCell>
+      <TableCell className="px-6 text-right"><ConfidenceBar value={result.confidence} /></TableCell>
     </TableRow>
   );
 }
@@ -158,28 +169,43 @@ export function ValidationDetail({ run }: { run: ValidationRun }) {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Ensemble Scorers</CardTitle>
-          <CardDescription>Independent views aggregated into the final verdict</CardDescription>
-        </CardHeader>
-        <CardContent className="px-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Model</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Confidence</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {run.independent_scorer_results.map((res, i) => (
-                <ScorerRow key={i} result={res} />
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {run.independent_scorer_results.length > 1 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Ensemble Scorers</CardTitle>
+            <CardDescription>Independent views aggregated into the final verdict</CardDescription>
+          </CardHeader>
+          <CardContent className="px-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="px-6">Model</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="px-6 text-right">Confidence</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {run.independent_scorer_results.map((res, i) => (
+                  <ScorerRow key={i} result={res} />
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Ensemble Scorers</CardTitle>
+            <CardDescription>Independent views aggregated into the final verdict</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              No ensemble run for this validation — a single scorer model produced the verdict
+              shown above.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {brief.evidence.length > 0 && (
         <Card>
@@ -234,8 +260,8 @@ export function ValidationDetail({ run }: { run: ValidationRun }) {
                   )}
                   <div>
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Raw content</span>
-                    <pre className="mt-1 overflow-x-auto rounded-lg border bg-muted/30 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                      {call.raw_content}
+                    <pre className="mt-1 max-h-96 overflow-auto rounded-lg border bg-muted/30 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
+                      {formatMaybeJson(call.raw_content)}
                     </pre>
                   </div>
                   {call.citations.length > 0 && (

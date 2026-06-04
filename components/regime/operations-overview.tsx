@@ -13,7 +13,6 @@ import {
 
 import { RegimeBadge, ValidationStatusBadge } from "@/components/regime/badges";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import {
   formatDate,
   formatDateTime,
@@ -21,6 +20,7 @@ import {
   formatPercent,
   formatRate,
 } from "@/lib/format";
+import { regimeTone } from "@/lib/regime";
 import type { ProviderRun, RegimeSnapshot, ValidationRun } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -118,12 +118,6 @@ export function OperationsOverview({
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" asChild>
-            <Link href="/validation">
-              <SparklesIcon className="size-3.5" />
-              Validation tape
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
             <Link href="/data-health">
               <DatabaseIcon className="size-3.5" />
               Provider runs
@@ -218,11 +212,24 @@ export function OperationsOverview({
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 md:justify-end">
-                    <Progress
-                      value={Math.min(vol.accel_vs_252d / 2.5, 1) * 100}
-                      className="h-1.5 w-24"
-                    />
+                  <div
+                    className="flex items-center gap-2 md:justify-end"
+                    title="Acceleration toward the crisis threshold (2.5×)"
+                  >
+                    <div className="hidden flex-col items-end gap-1 sm:flex">
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Crisis proximity
+                      </span>
+                      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${Math.min(vol.accel_vs_252d / 2.5, 1) * 100}%`,
+                            backgroundColor: regimeTone(vol.regime).hex,
+                          }}
+                        />
+                      </div>
+                    </div>
                     <ExternalLinkIcon className="size-3.5 text-muted-foreground" />
                   </div>
                 </Link>
@@ -242,7 +249,7 @@ export function OperationsOverview({
             {validations.slice(0, 5).map((run) => (
               <Link
                 key={run.id}
-                href={`/validation/${run.pair_code}`}
+                href={`/pairs/${run.pair_code}?tab=validation`}
                 className="block px-4 py-3 transition-colors hover:bg-muted/40"
               >
                 <div className="flex items-center justify-between gap-3">
