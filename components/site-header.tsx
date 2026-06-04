@@ -1,30 +1,52 @@
 "use client";
 
 import * as React from "react";
+import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { MoonIcon, SunIcon } from "lucide-react";
 
+import { PairSwitcher } from "@/components/regime/pair-switcher";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
-export function SiteHeader({
-  title,
-  children,
-}: {
-  title: string;
-  children?: React.ReactNode;
-}) {
+const TITLES: Record<string, string> = {
+  pairs: "Pair Review",
+  validation: "LLM Validation",
+  "data-health": "Data Health",
+  help: "Help & Methodology",
+};
+
+export function SiteHeader() {
+  const pathname = usePathname();
   const { resolvedTheme, setTheme } = useTheme();
 
+  const segments = pathname.split("/").filter(Boolean);
+  const root = segments[0];
+  const title = pathname === "/" ? "Overview" : (TITLES[root] ?? "Overview");
+
+  // On a per-pair detail route, show the pair switcher in the header.
+  const detail =
+    (root === "pairs" || root === "validation") && segments[1]
+      ? { pair: segments[1].toUpperCase(), basePath: `/${root}`, preserveQuery: root === "pairs" }
+      : null;
+
   return (
-    <header className="sticky top-0 z-20 flex h-(--header-height) shrink-0 items-center gap-2 border-b bg-background/80 backdrop-blur transition-[width,height] ease-linear">
+    <header className="sticky top-0 z-20 flex h-(--header-height) shrink-0 items-center gap-2 border-b bg-background/85 backdrop-blur md:rounded-t-[14px]">
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="mx-2 h-4 data-vertical:self-auto" />
         <h1 className="text-sm font-medium md:text-base">{title}</h1>
         <div className="ml-auto flex items-center gap-2">
-          {children}
+          {detail && (
+            <React.Suspense fallback={null}>
+              <PairSwitcher
+                current={detail.pair}
+                basePath={detail.basePath}
+                preserveQuery={detail.preserveQuery}
+              />
+            </React.Suspense>
+          )}
           <Button
             variant="ghost"
             size="icon"

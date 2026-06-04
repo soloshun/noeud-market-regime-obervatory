@@ -1,4 +1,3 @@
-import { ObservatoryShell } from "@/components/observatory-shell";
 import { RegimeBadge } from "@/components/regime/badges";
 import { SectionTitle } from "@/components/regime/primitives";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,7 +58,7 @@ const PIPELINE = [
 
 export default function HelpPage() {
   return (
-    <ObservatoryShell title="Help & Methodology">
+    <>
       <SectionTitle description="How the deterministic engine reads the market, and how the LLM layer validates it.">
         Methodology
       </SectionTitle>
@@ -137,6 +136,6 @@ export default function HelpPage() {
           those snapshots, validation runs, and provider runs through the internal API.
         </CardContent>
       </Card>
-    </ObservatoryShell>
+    </>
   );
 }

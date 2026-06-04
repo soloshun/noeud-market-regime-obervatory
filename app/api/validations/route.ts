@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 
-import { getAllValidations, getAsOf } from "@/lib/mock/dataset";
+import { getAllValidations, getAsOf } from "@/lib/server-data";
 
-export function GET() {
-  return NextResponse.json({ as_of_date: getAsOf(), runs: getAllValidations() });
+export async function GET() {
+  return NextResponse.json({
+    as_of_date: await getAsOf(),
+    runs: await getAllValidations(),
+  });
 }

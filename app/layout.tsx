@@ -3,6 +3,7 @@ import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 import { Toaster } from "sonner";
 
 import "./globals.css";
+import { AppShell } from "@/components/app-shell";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -38,7 +39,9 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <ThemeProvider>
           <QueryProvider>
-            <TooltipProvider delayDuration={150}>{children}</TooltipProvider>
+            <TooltipProvider delayDuration={150}>
+              <AppShell>{children}</AppShell>
+            </TooltipProvider>
           </QueryProvider>
           <Toaster richColors position="bottom-right" />
         </ThemeProvider>

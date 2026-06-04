@@ -1,5 +1,12 @@
 import * as React from "react";
-import { ArrowDownRightIcon, ArrowUpRightIcon } from "lucide-react";
+import {
+  ArrowDownRightIcon,
+  ArrowUpRightIcon,
+  CalculatorIcon,
+  DatabaseIcon,
+  ShieldCheckIcon,
+  TrendingUpIcon,
+} from "lucide-react";
 
 import {
   BacktestBadge,
@@ -78,6 +85,62 @@ function HeaderStat({ label, value }: { label: string; value: React.ReactNode })
     <div className="flex flex-col gap-1">
       <span className="text-xs text-muted-foreground">{label}</span>
       <span className="font-mono text-sm font-medium tabular-nums">{value}</span>
+    </div>
+  );
+}
+
+export function PairAuditSummary({ snapshot }: { snapshot: RegimeSnapshot }) {
+  const v = snapshot.current_volatility_readings;
+  const t = snapshot.volatility_trend_signals;
+  const bt = snapshot.backtest_validation_results;
+  const varr = snapshot.historical_var;
+  const checks = snapshot.system_validation_checks;
+  const passedChecks = Object.values(checks).filter(Boolean).length;
+  const totalChecks = Object.values(checks).length;
+
+  const items = [
+    {
+      icon: DatabaseIcon,
+      label: "Market data",
+      value: snapshot.market_data_provider,
+      hint: `${snapshot.display_pair} close as of ${formatDate(snapshot.as_of_date)}`,
+    },
+    {
+      icon: CalculatorIcon,
+      label: "Regime basis",
+      value: `${formatNumber(v.accel_vs_252d, 2)}x acceleration`,
+      hint: "30d realized volatility divided by 252d baseline",
+    },
+    {
+      icon: TrendingUpIcon,
+      label: "Trend overlay",
+      value: titleCase(t.composite_signal),
+      hint: `10d ${formatNumber(t.trend_10d, 2)}x · 30d ${formatNumber(t.trend_30d, 2)}x · 90d ${formatNumber(t.trend_90d, 2)}x`,
+    },
+    {
+      icon: ShieldCheckIcon,
+      label: "Audit checks",
+      value: `${passedChecks}/${totalChecks} passed`,
+      hint: `VaR coverage ${formatPercent(bt.var_99_coverage)} · fat-tail ${formatNumber(varr.fat_tail_ratio, 2)}x`,
+    },
+  ];
+
+  return (
+    <div className="rounded-lg border">
+      <div className="grid grid-cols-1 divide-y md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-4">
+        {items.map((item) => (
+          <div key={item.label} className="p-4">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <item.icon className="size-3.5" />
+              {item.label}
+            </div>
+            <div className="mt-1 text-sm font-medium">{item.value}</div>
+            <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              {item.hint}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

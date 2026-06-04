@@ -29,7 +29,7 @@ import type { ProviderRun } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 function StatusCell({ status }: { status: string }) {
-  const ok = status === "succeeded";
+  const ok = ["success", "succeeded", "skipped"].includes(status);
   return (
     <span
       className={cn(
@@ -47,14 +47,20 @@ function StatusCell({ status }: { status: string }) {
 
 function modeOf(run: ProviderRun): string {
   const detail = run.source_detail ?? {};
-  if (run.status !== "succeeded") return String((detail as Record<string, unknown>).error ?? "—");
+  if (!["success", "succeeded", "skipped"].includes(run.status)) {
+    return String((detail as Record<string, unknown>).error ?? "—");
+  }
   const mode = (detail as Record<string, unknown>).mode as string | undefined;
+  const fetchMode = (detail as Record<string, unknown>).fetch_mode as string | undefined;
   const backfill = (detail as Record<string, unknown>).backfill_reason as string | undefined;
-  return backfill ? `${mode} · ${backfill}` : (mode ?? "—");
+  const label = mode ?? fetchMode ?? "—";
+  return backfill ? `${label} · ${backfill}` : label;
 }
 
 export function DataHealthCards({ runs }: { runs: ProviderRun[] }) {
-  const succeeded = runs.filter((r) => r.status === "succeeded").length;
+  const succeeded = runs.filter((r) =>
+    ["success", "succeeded", "skipped"].includes(r.status),
+  ).length;
   const failed = runs.length - succeeded;
   const rows = runs.reduce((a, r) => a + r.row_count, 0);
   const backfills = runs.filter(

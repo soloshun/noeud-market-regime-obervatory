@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type {
   ProviderRun,
+  RawPriceObservation,
   RegimeHistoryPoint,
   RegimeOverviewResponse,
   RegimeSnapshot,
@@ -50,6 +51,20 @@ export function useRegimeHistory(pair: string) {
         `/regimes/${pair}/history`,
       );
       return data.points;
+    },
+    enabled: Boolean(pair),
+  });
+}
+
+export function usePriceObservations(pair: string) {
+  return useQuery({
+    queryKey: ["price-observations", pair],
+    queryFn: async () => {
+      const { data } = await api.get<{
+        pair: string;
+        observations: RawPriceObservation[];
+      }>(`/regimes/${pair}/prices`);
+      return data.observations;
     },
     enabled: Boolean(pair),
   });

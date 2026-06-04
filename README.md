@@ -24,24 +24,40 @@ It surfaces, for every supported pair, the full deterministic snapshot (volatili
 | `/data-health` | Provider runs and ingestion status |
 | `/help` | Methodology — regime bands, metrics, the validation pipeline |
 
-## Data layer & the Supabase swap seam
+## Data layer
 
-The backend (a Next.js API reading from Supabase) is built separately. To keep the
-frontend decoupled and demoable today, the data flows through one clean seam:
+The frontend reads through same-origin Next.js route handlers. Those handlers use
+Supabase when it is configured, and fall back to the deterministic fixture dataset
+when local env vars are absent.
 
 ```
 UI (hooks/use-regime.ts)
   -> lib/api.ts (axios, same-origin /api)
-    -> app/api/* route handlers   <-- the swap seam
-      -> lib/mock/dataset.ts (fixtures, today)
-         lib/mock/engine.ts  (faithful TS port of the regime math)
+    -> app/api/* route handlers
+      -> lib/server-data.ts
+        -> Supabase REST tables/views when configured
+        -> lib/mock/dataset.ts fixtures otherwise
 ```
 
-`lib/mock/*` is a deterministic, seeded re-implementation of the deterministic
-engine (`calculations/market_regime.py`) producing internally-consistent fixtures
-that match the real payload contracts in `lib/types.ts`. When the Supabase backend
-lands, **only the `app/api/*` route handlers change** — they query Supabase instead
-of the fixtures. Nothing in the UI, hooks, or types moves.
+Set:
+
+```bash
+OBSERVATORY_DATA_SOURCE=auto          # auto | supabase | mock
+SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...         # preferred for server routes
+# or SUPABASE_ANON_KEY=...            # works for read-only RLS policies
+```
+
+The live reader uses:
+
+- `latest_market_regime_snapshots`
+- `market_regime_snapshots`
+- `raw_price_observations`
+- `provider_runs`
+- `latest_llm_validation_runs`
+
+`lib/mock/*` remains a deterministic, seeded re-implementation of the engine so
+the UI is still demoable before Supabase is configured.
 
 Point the client at an external API instead by setting `NEXT_PUBLIC_API_BASE_URL`.
 

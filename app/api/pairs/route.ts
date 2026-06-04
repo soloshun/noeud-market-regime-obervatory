@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 
-import { getAsOf, getSupportedPairs } from "@/lib/mock/dataset";
+import { getAsOf, getSupportedPairs } from "@/lib/server-data";
 
-export function GET() {
-  return NextResponse.json({ as_of_date: getAsOf(), pairs: getSupportedPairs() });
+export async function GET() {
+  return NextResponse.json({
+    as_of_date: await getAsOf(),
+    pairs: await getSupportedPairs(),
+  });
 }

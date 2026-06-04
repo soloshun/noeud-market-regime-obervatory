@@ -17,7 +17,6 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -42,19 +41,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
 
   return (
-    <Sidebar collapsible="offcanvas" variant="inset" {...props}>
+    <Sidebar collapsible="icon" variant="inset" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
+            <SidebarMenuButton asChild className="h-10 data-[slot=sidebar-menu-button]:p-1.5!">
               <Link href="/">
-                <div className="flex aspect-square size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <div className="flex aspect-square size-7 items-center justify-center rounded-lg bg-blue-600 text-white">
                   <ActivityIcon className="size-4" />
                 </div>
-                <div className="grid flex-1 text-left leading-tight">
-                  <span className="truncate text-sm font-semibold">Regime Observatory</span>
-                  <span className="truncate text-xs text-muted-foreground">Noeud · internal</span>
-                </div>
+                <span className="truncate text-sm font-semibold">Regime Observatory</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -63,11 +59,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Observatory</SidebarGroupLabel>
-          <SidebarMenu>
+          <SidebarMenu className="gap-1">
             {NAV_MAIN.map((item) => (
               <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton asChild isActive={isActive(pathname, item.url)} tooltip={item.title}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive(pathname, item.url)}
+                  tooltip={item.title}
+                  className="h-9 group-data-[collapsible=icon]:size-9!"
+                >
                   <Link href={item.url}>
                     <item.icon />
                     <span>{item.title}</span>
@@ -79,10 +79,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
 
         <SidebarGroup className="mt-auto">
-          <SidebarMenu>
+          <SidebarMenu className="gap-1">
             {NAV_SECONDARY.map((item) => (
               <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton asChild isActive={isActive(pathname, item.url)} tooltip={item.title}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive(pathname, item.url)}
+                  tooltip={item.title}
+                  className="h-9 group-data-[collapsible=icon]:size-9!"
+                >
                   <Link href={item.url}>
                     <item.icon />
                     <span>{item.title}</span>
@@ -95,7 +100,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
 
       <SidebarFooter>
-        <div className="px-2 py-1 text-xs text-muted-foreground">Deterministic engine · v0.1</div>
+        <div className="px-2 py-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+          Deterministic engine · v0.1
+        </div>
       </SidebarFooter>
     </Sidebar>
   );

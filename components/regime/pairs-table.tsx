@@ -203,6 +203,7 @@ export function PairsTable({ snapshots }: { snapshots: RegimeSnapshot[] }) {
     [],
   );
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: rows,
     columns,

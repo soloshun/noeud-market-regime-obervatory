@@ -1,6 +1,5 @@
 "use client";
 
-import { ObservatoryShell } from "@/components/observatory-shell";
 import { EmptyState, SectionTitle } from "@/components/regime/primitives";
 import { ValidationKpis, ValidationTable } from "@/components/regime/validation-list";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,7 +9,7 @@ export default function ValidationPage() {
   const query = useValidations();
 
   return (
-    <ObservatoryShell title="LLM Validation">
+    <>
       <SectionTitle description="The intelligence layer validates the deterministic read against grounded market context. It never overrides the engine.">
         Validation Overview
       </SectionTitle>
@@ -31,6 +30,6 @@ export default function ValidationPage() {
           <ValidationTable runs={query.data!} />
         </>
       )}
-    </ObservatoryShell>
+    </>
   );
 }

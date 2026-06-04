@@ -1,6 +1,5 @@
 "use client";
 
-import { ObservatoryShell } from "@/components/observatory-shell";
 import { DataHealthCards, ProviderRunsTable } from "@/components/regime/data-health";
 import { EmptyState, SectionTitle } from "@/components/regime/primitives";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,7 +9,7 @@ export default function DataHealthPage() {
   const query = useProviderRuns();
 
   return (
-    <ObservatoryShell title="Data Health">
+    <>
       <SectionTitle description="Ingestion provenance for the deterministic engine. Every regime snapshot traces back to a provider run.">
         Ingestion &amp; Provider Runs
       </SectionTitle>
@@ -31,6 +30,6 @@ export default function DataHealthPage() {
           <ProviderRunsTable runs={query.data!} />
         </>
       )}
-    </ObservatoryShell>
+    </>
   );
 }

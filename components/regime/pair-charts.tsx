@@ -27,6 +27,7 @@ import type {
   RegimeHistoryPoint,
   RegimeLabel,
   RegimeSnapshot,
+  RawPriceObservation,
 } from "@/lib/types";
 
 const VOL_WINDOWS: { key: keyof RegimeSnapshot["current_volatility_readings"]; label: string }[] = [
@@ -43,18 +44,18 @@ function shortDate(value: string) {
 }
 
 export function SpotHistoryChart({
-  history,
+  observations,
   pair,
 }: {
-  history: RegimeHistoryPoint[];
+  observations: RawPriceObservation[];
   pair: string;
 }) {
-  const data = history.map((p) => ({ date: p.as_of_date, spot: p.spot_rate }));
+  const data = observations.map((p) => ({ date: p.observed_on, spot: p.close_display }));
   return (
     <Card>
       <CardHeader>
         <CardTitle>Spot Rate</CardTitle>
-        <CardDescription>{pair} daily close · last {history.length} sessions</CardDescription>
+        <CardDescription>{pair} daily close · last {observations.length} observations</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer
@@ -112,6 +113,90 @@ export function AccelerationHistoryChart({ history }: { history: RegimeHistoryPo
               content={<ChartTooltipContent labelFormatter={(v) => shortDate(String(v))} formatter={(val) => `${formatNumber(Number(val), 2)}x`} />}
             />
             <Line dataKey="accel" type="monotone" stroke="var(--color-accel)" strokeWidth={2} dot={false} />
+          </LineChart>
+        </ChartContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function VolatilityHistoryChart({ history }: { history: RegimeHistoryPoint[] }) {
+  const data = history.map((p) => ({
+    date: p.as_of_date,
+    vol30: p.vol_30d,
+    vol90: p.vol_90d,
+    vol252: p.vol_252d,
+  }));
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Realized Volatility Path</CardTitle>
+        <CardDescription>30d, 90d, and 252d annualized vol used by the regime engine</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer
+          config={{
+            vol30: { label: "30d", color: "var(--chart-1)" },
+            vol90: { label: "90d", color: "var(--chart-2)" },
+            vol252: { label: "252d", color: "var(--chart-5)" },
+          }}
+          className="aspect-auto h-[260px] w-full"
+        >
+          <LineChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
+            <CartesianGrid vertical={false} />
+            <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={40} fontSize={11} tickFormatter={shortDate} />
+            <YAxis tickLine={false} axisLine={false} width={44} fontSize={11} tickFormatter={(v) => formatVol(Number(v), 0)} />
+            <ChartTooltip content={<ChartTooltipContent labelFormatter={(v) => shortDate(String(v))} formatter={(val) => formatVol(Number(val))} />} />
+            <Line dataKey="vol30" type="monotone" stroke="var(--color-vol30)" strokeWidth={2} dot={false} />
+            <Line dataKey="vol90" type="monotone" stroke="var(--color-vol90)" strokeWidth={2} dot={false} />
+            <Line dataKey="vol252" type="monotone" stroke="var(--color-vol252)" strokeWidth={2} dot={false} />
+          </LineChart>
+        </ChartContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function TailRiskHistoryChart({ history }: { history: RegimeHistoryPoint[] }) {
+  const data = history.map((p) => ({
+    date: p.as_of_date,
+    var30: p.hist_var_99_30d,
+    fatTail: p.fat_tail_ratio,
+  }));
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Tail-Risk Tape</CardTitle>
+        <CardDescription>Historical 99% 30d VaR and fat-tail pressure over time</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer
+          config={{
+            var30: { label: "Hist VaR 99% 30d", color: "var(--chart-5)" },
+            fatTail: { label: "Fat-tail ratio", color: "var(--chart-3)" },
+          }}
+          className="aspect-auto h-[260px] w-full"
+        >
+          <LineChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
+            <CartesianGrid vertical={false} />
+            <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={40} fontSize={11} tickFormatter={shortDate} />
+            <YAxis yAxisId="var" tickLine={false} axisLine={false} width={44} fontSize={11} tickFormatter={(v) => formatVol(Number(v), 0)} />
+            <YAxis yAxisId="ratio" orientation="right" tickLine={false} axisLine={false} width={36} fontSize={11} tickFormatter={(v) => `${formatNumber(Number(v), 1)}x`} />
+            <ReferenceLine yAxisId="ratio" y={1} stroke="var(--muted-foreground)" strokeDasharray="3 3" strokeOpacity={0.45} />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  labelFormatter={(v) => shortDate(String(v))}
+                  formatter={(val, name) =>
+                    name === "fatTail"
+                      ? `${formatNumber(Number(val), 2)}x`
+                      : formatVol(Number(val), 2)
+                  }
+                />
+              }
+            />
+            <Line yAxisId="var" dataKey="var30" type="monotone" stroke="var(--color-var30)" strokeWidth={2} dot={false} />
+            <Line yAxisId="ratio" dataKey="fatTail" type="monotone" stroke="var(--color-fatTail)" strokeWidth={2} dot={false} />
           </LineChart>
         </ChartContainer>
       </CardContent>

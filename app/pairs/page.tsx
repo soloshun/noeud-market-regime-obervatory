@@ -1,6 +1,5 @@
 "use client";
 
-import { ObservatoryShell } from "@/components/observatory-shell";
 import { PairGrid } from "@/components/regime/pair-grid";
 import { EmptyState, SectionTitle } from "@/components/regime/primitives";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,7 +9,7 @@ export default function PairsIndexPage() {
   const query = useRegimeOverview();
 
   return (
-    <ObservatoryShell title="Pair Review">
+    <>
       <SectionTitle description="Select a pair to inspect its full deterministic snapshot and LLM validation.">
         All Pairs
       </SectionTitle>
@@ -25,6 +24,6 @@ export default function PairsIndexPage() {
       ) : (
         <PairGrid snapshots={query.data!.snapshots} />
       )}
-    </ObservatoryShell>
+    </>
   );
 }

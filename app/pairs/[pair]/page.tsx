@@ -5,17 +5,21 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
 
-import { ObservatoryShell } from "@/components/observatory-shell";
-import { PairSwitcher } from "@/components/regime/pair-switcher";
 import { EmptyState } from "@/components/regime/primitives";
 import {
   AccelerationHistoryChart,
   MultiplierChart,
   SpotHistoryChart,
+  TailRiskHistoryChart,
   TermStructureChart,
+  VolatilityHistoryChart,
   VolWindowsChart,
 } from "@/components/regime/pair-charts";
-import { PairHeaderCard, PairSnapshotGrid } from "@/components/regime/pair-snapshot";
+import {
+  PairAuditSummary,
+  PairHeaderCard,
+  PairSnapshotGrid,
+} from "@/components/regime/pair-snapshot";
 import { ValidationDetail, ValidationSummaryCard } from "@/components/regime/validation";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useRegimeHistory,
   useRegimeSnapshot,
+  usePriceObservations,
   useValidation,
 } from "@/hooks/use-regime";
 
@@ -39,6 +44,7 @@ function PairDetail({ code }: { code: string }) {
 
   const snapshotQuery = useRegimeSnapshot(code);
   const historyQuery = useRegimeHistory(code);
+  const priceQuery = usePriceObservations(code);
   const validationQuery = useValidation(code);
 
   const onTabChange = (value: string) => {
@@ -46,10 +52,7 @@ function PairDetail({ code }: { code: string }) {
   };
 
   return (
-    <ObservatoryShell
-      title="Pair Review"
-      headerActions={<PairSwitcher current={code} basePath="/pairs" preserveQuery />}
-    >
+    <>
       <Button variant="ghost" size="sm" className="-ml-2 w-fit text-muted-foreground" asChild>
         <Link href="/pairs">
           <ArrowLeftIcon className="size-3.5" /> All pairs
@@ -81,6 +84,7 @@ function PairDetail({ code }: { code: string }) {
             </TabsList>
 
             <TabsContent value="snapshot" className="space-y-4">
+              <PairAuditSummary snapshot={snapshotQuery.data} />
               <PairSnapshotGrid snapshot={snapshotQuery.data} />
               {validationQuery.data && (
                 <ValidationSummaryCard
@@ -94,8 +98,15 @@ function PairDetail({ code }: { code: string }) {
               {historyQuery.data && historyQuery.data.length > 0 ? (
                 <>
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    <SpotHistoryChart history={historyQuery.data} pair={snapshotQuery.data.display_pair} />
+                    <SpotHistoryChart
+                      observations={priceQuery.data ?? []}
+                      pair={snapshotQuery.data.display_pair}
+                    />
                     <AccelerationHistoryChart history={historyQuery.data} />
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    <VolatilityHistoryChart history={historyQuery.data} />
+                    <TailRiskHistoryChart history={historyQuery.data} />
                   </div>
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <VolWindowsChart snapshot={snapshotQuery.data} />
@@ -120,7 +131,7 @@ function PairDetail({ code }: { code: string }) {
           </Tabs>
         </div>
       )}
-    </ObservatoryShell>
+    </>
   );
 }
 
