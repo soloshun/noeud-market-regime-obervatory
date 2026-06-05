@@ -89,6 +89,12 @@ export function OperationsOverview({
       run.status === "contradicts" ||
       run.result.recommended_action === "escalate_for_human_review",
   );
+  const trendAdjustments = validations
+    .map((run) => run.result.trend_adjustment_pct)
+    .filter((value) => Number.isFinite(value));
+  const avgTrendAdjustment =
+    trendAdjustments.reduce((sum, value) => sum + value, 0) /
+    Math.max(trendAdjustments.length, 1);
   const failedRuns = providerRuns.filter(
     (run) => !["success", "succeeded", "skipped"].includes(run.status),
   );
@@ -126,7 +132,7 @@ export function OperationsOverview({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <Metric
           icon={GaugeIcon}
           label="Latest Snapshot"
@@ -150,6 +156,12 @@ export function OperationsOverview({
           label="LLM Alignment"
           value={formatPercent(validationAligned / Math.max(validations.length, 1), 0)}
           hint={`${validationEscalations.length} escalation flags`}
+        />
+        <Metric
+          icon={SparklesIcon}
+          label="Trend Overlay"
+          value={formatPercent(avgTrendAdjustment, 1)}
+          hint="Avg LLM multiplier adjustment"
         />
         <Metric
           icon={CheckCircle2Icon}
@@ -240,9 +252,9 @@ export function OperationsOverview({
 
         <div className="rounded-lg border">
           <div className="border-b px-4 py-3">
-            <h3 className="text-sm font-medium">Validation Audit State</h3>
+            <h3 className="text-sm font-medium">Trend-Aware Validation State</h3>
             <p className="text-xs text-muted-foreground">
-              Latest ensemble verdicts and required actions
+              Latest multiplier overlay verdicts and market sentiment
             </p>
           </div>
           <div className="divide-y">
@@ -259,12 +271,14 @@ export function OperationsOverview({
                   <ValidationStatusBadge status={run.status} />
                 </div>
                 <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                  {run.result.validation_summary}
+                  {run.result.trend_aware_validation_summary}
                 </p>
                 <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>{run.model_name}</span>
+                  <span>{run.result.trend_adjustment_direction}</span>
                   <span className={cn("size-1 rounded-full bg-muted-foreground/40")} />
-                  <span>{formatNumber((run.confidence ?? 0) * 100, 0)}% confidence</span>
+                  <span>{formatPercent(run.result.trend_adjustment_pct, 1)} overlay</span>
+                  <span className={cn("size-1 rounded-full bg-muted-foreground/40")} />
+                  <span>{formatNumber(run.result.trend_adjustment_confidence * 100, 0)}% confidence</span>
                 </div>
               </Link>
             ))}

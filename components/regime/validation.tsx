@@ -23,6 +23,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDate, formatDateTime, formatNumber, titleCase } from "@/lib/format";
+import {
+  MARKET_SENTIMENT_LABELS,
+  TREND_ADJUSTMENT_LABELS,
+  VALIDATION_RUN_SOURCE_LABELS,
+} from "@/lib/regime";
 import { cn } from "@/lib/utils";
 import type { ValidationResult, ValidationRun } from "@/lib/types";
 
@@ -35,6 +40,70 @@ function formatMaybeJson(raw: string): string {
   } catch {
     return raw;
   }
+}
+
+export function TrendAwareAdjustmentCard({ run }: { run: ValidationRun }) {
+  const r = run.result;
+  const delta = r.recommended_primary_trend_multiplier - r.deterministic_primary_trend_multiplier;
+  const positive = delta > 0;
+  const neutral = Math.abs(delta) < 0.0001;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Trend-Aware Multiplier Review</CardTitle>
+        <CardDescription>
+          LLM sentiment overlay for {titleCase(r.primary_trend_aware_tenor.replace("tenor_", ""))}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <Stat
+            label="Deterministic"
+            value={`${formatNumber(r.deterministic_primary_trend_multiplier, 2)}x`}
+          />
+          <Stat
+            label="LLM recommendation"
+            value={`${formatNumber(r.recommended_primary_trend_multiplier, 2)}x`}
+          />
+          <Stat
+            label="Adjustment"
+            value={`${positive ? "+" : ""}${formatNumber(r.trend_adjustment_pct * 100, 1)}%`}
+          />
+          <Stat
+            label="Sentiment"
+            value={MARKET_SENTIMENT_LABELS[r.market_sentiment]}
+            mono={false}
+          />
+        </div>
+        <div className="rounded-lg border bg-muted/25 p-3">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span
+              className={cn(
+                "rounded-md border px-2 py-0.5 font-medium",
+                positive
+                  ? "border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300"
+                  : neutral
+                    ? "border-border bg-background text-muted-foreground"
+                    : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+              )}
+            >
+              {TREND_ADJUSTMENT_LABELS[r.trend_adjustment_direction]}
+            </span>
+            <span className="text-muted-foreground">
+              {formatNumber(r.trend_adjustment_confidence * 100, 0)}% adjustment confidence
+            </span>
+          </div>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            {r.trend_adjustment_rationale}
+          </p>
+        </div>
+        {r.trend_driver_evidence.length > 0 && (
+          <PointList title="Trend drivers" points={r.trend_driver_evidence} tone="bg-sky-500" />
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 function ConfidenceBar({ value }: { value: number }) {
@@ -68,7 +137,7 @@ export function ValidationSummaryCard({
               <span className="font-normal text-muted-foreground">· latest</span>
             </CardTitle>
             <CardDescription className="mt-1">
-              {run.model_name} · {formatDateTime(run.created_at)}
+              {VALIDATION_RUN_SOURCE_LABELS[run.run_source]} · {run.model_name} · {formatDateTime(run.created_at)}
             </CardDescription>
           </div>
           <ValidationStatusBadge status={r.status} />
@@ -130,6 +199,7 @@ export function ValidationDetail({ run }: { run: ValidationRun }) {
   return (
     <div className="space-y-4">
       <ValidationSummaryCard run={run} />
+      <TrendAwareAdjustmentCard run={run} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
@@ -162,6 +232,14 @@ export function ValidationDetail({ run }: { run: ValidationRun }) {
             <div>
               <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Currency-specific</span>
               <p className="mt-1 leading-relaxed text-muted-foreground">{brief.currency_specific_context}</p>
+            </div>
+            <div>
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Market sentiment</span>
+              <p className="mt-1 leading-relaxed text-muted-foreground">{brief.market_sentiment_summary}</p>
+            </div>
+            <div>
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Policy/liquidity</span>
+              <p className="mt-1 leading-relaxed text-muted-foreground">{brief.policy_liquidity_context}</p>
             </div>
             {brief.risk_events.length > 0 && (
               <div>
@@ -348,6 +426,9 @@ export function PairValidations({
               >
                 <span className="font-mono text-xs font-medium">
                   {formatDateTime(run.created_at)}
+                </span>
+                <span className="text-xs font-medium text-muted-foreground">
+                  {VALIDATION_RUN_SOURCE_LABELS[run.run_source]}
                 </span>
                 <span className="truncate text-xs text-muted-foreground">{run.model_name}</span>
                 <ValidationStatusBadge status={run.status} />

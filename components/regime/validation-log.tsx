@@ -33,7 +33,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/format";
-import { VALIDATION_STATUS_LABELS, VALIDATION_STATUS_TONES } from "@/lib/regime";
+import {
+  VALIDATION_RUN_SOURCE_LABELS,
+  VALIDATION_STATUS_LABELS,
+  VALIDATION_STATUS_TONES,
+} from "@/lib/regime";
 import type { ValidationRun, ValidationStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -126,6 +130,15 @@ export function ValidationLog({ runs }: { runs: ValidationRun[] }) {
         accessorKey: "created_at",
         header: ({ column }) => <SortHeader label="Run at" sorted={column.getIsSorted()} onClick={column.getToggleSortingHandler()!} />,
         cell: ({ row }) => <span className="text-muted-foreground">{formatDateTime(row.original.created_at)}</span>,
+      },
+      {
+        accessorKey: "run_source",
+        header: ({ column }) => <SortHeader label="Source" sorted={column.getIsSorted()} onClick={column.getToggleSortingHandler()!} />,
+        cell: ({ row }) => (
+          <span className="text-xs font-medium text-muted-foreground">
+            {VALIDATION_RUN_SOURCE_LABELS[row.original.run_source]}
+          </span>
+        ),
       },
       {
         accessorKey: "as_of_date",

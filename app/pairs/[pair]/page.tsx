@@ -12,6 +12,7 @@ import {
   SpotHistoryChart,
   TailRiskHistoryChart,
   TermStructureChart,
+  TrendAwareMultiplierOverlayChart,
   VolatilityHistoryChart,
   VolWindowsChart,
 } from "@/components/regime/pair-charts";
@@ -20,7 +21,11 @@ import {
   PairHeaderCard,
   PairSnapshotGrid,
 } from "@/components/regime/pair-snapshot";
-import { PairValidations, ValidationSummaryCard } from "@/components/regime/validation";
+import {
+  PairValidations,
+  TrendAwareAdjustmentCard,
+  ValidationSummaryCard,
+} from "@/components/regime/validation";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -88,6 +93,7 @@ function PairDetail({ code }: { code: string }) {
 
             <TabsContent value="snapshot" className="space-y-4">
               <PairAuditSummary snapshot={snapshotQuery.data} />
+              {latestValidation && <TrendAwareAdjustmentCard run={latestValidation} />}
               <PairSnapshotGrid snapshot={snapshotQuery.data} />
               {latestValidation && (
                 <ValidationSummaryCard
@@ -101,6 +107,10 @@ function PairDetail({ code }: { code: string }) {
             <TabsContent value="charts" className="space-y-4">
               {historyQuery.data && historyQuery.data.length > 0 ? (
                 <>
+                  <TrendAwareMultiplierOverlayChart
+                    snapshot={snapshotQuery.data}
+                    validation={latestValidation}
+                  />
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <SpotHistoryChart
                       observations={priceQuery.data ?? []}

@@ -393,6 +393,29 @@ function buildValidationRun(snapshot: RegimeSnapshot): ValidationRun {
     GHS: "Bank of Ghana", NGN: "Central Bank of Nigeria", KES: "Central Bank of Kenya", ZAR: "South African Reserve Bank",
   };
   const evidence = evidenceFor(code, rng);
+  const deterministicMultipliers = snapshot.dynamic_trend_aware_regime_multiplier;
+  const sentiment =
+    regime === "CALM" || regime === "NORMAL"
+      ? "volatility_dampening"
+      : regime === "CRISIS" || regime === "STRESSED"
+        ? "volatility_amplifying"
+        : "mixed";
+  const adjustmentPct =
+    sentiment === "volatility_dampening"
+      ? -0.05
+      : sentiment === "volatility_amplifying"
+        ? 0.08
+        : 0.0;
+  const adjustmentDirection =
+    adjustmentPct > 0 ? "increase" : adjustmentPct < 0 ? "decrease" : "hold";
+  const recommendedMultipliers = {
+    tenor_le_14d: Number((deterministicMultipliers.tenor_le_14d * (1 + adjustmentPct)).toFixed(3)),
+    tenor_le_30d: Number((deterministicMultipliers.tenor_le_30d * (1 + adjustmentPct)).toFixed(3)),
+    tenor_le_60d: Number((deterministicMultipliers.tenor_le_60d * (1 + adjustmentPct)).toFixed(3)),
+    tenor_le_90d: Number((deterministicMultipliers.tenor_le_90d * (1 + adjustmentPct)).toFixed(3)),
+    tenor_le_180d: Number((deterministicMultipliers.tenor_le_180d * (1 + adjustmentPct)).toFixed(3)),
+    tenor_gt_180d: Number((deterministicMultipliers.tenor_gt_180d * (1 + adjustmentPct)).toFixed(3)),
+  };
 
   const brief = {
     pair: code,
@@ -401,6 +424,13 @@ function buildValidationRun(snapshot: RegimeSnapshot): ValidationRun {
     macro_context: `External balances and import cover remain the dominant macro drivers for ${quote}. Recent data shows ${regime === "CALM" || regime === "NORMAL" ? "orderly" : "increasingly two-way"} flows.`,
     central_bank_context: `${cbank[quote] ?? "The central bank"} has signalled a data-dependent stance; forward guidance is consistent with a ${regime.toLowerCase()} volatility read.`,
     currency_specific_context: `${display} order flow is dominated by importer demand and offshore positioning; liquidity is ${regime === "CRISIS" ? "thin" : "moderate"}.`,
+    market_sentiment_summary:
+      sentiment === "volatility_dampening"
+        ? "Market mood is orderly and dampens the need for an elevated trend-aware multiplier."
+        : sentiment === "volatility_amplifying"
+          ? "Market mood is defensive and supports a higher trend-aware multiplier overlay."
+          : "Market mood is mixed and does not strongly justify moving the multiplier.",
+    policy_liquidity_context: `${cbank[quote] ?? "The central bank"} liquidity operations are treated as the main policy channel for near-term FX volatility sentiment.`,
     risk_events: [
       "Upcoming central-bank rate decision",
       "Monthly inflation print",
@@ -429,6 +459,34 @@ function buildValidationRun(snapshot: RegimeSnapshot): ValidationRun {
             : `Insufficient fresh evidence to confirm the ${regime} read for ${display}.`,
     rationale:
       "The deterministic engine anchors on realized-volatility acceleration. The research brief is treated as the factual anchor; where qualitative signals diverge they are noted as watch items rather than overrides.",
+    market_sentiment: sentiment,
+    trend_aware_validation_summary:
+      adjustmentDirection === "decrease"
+        ? `Market mood supports a modest decrease from the deterministic ${display} trend-aware multipliers.`
+        : adjustmentDirection === "increase"
+          ? `Market mood supports a modest increase above the deterministic ${display} trend-aware multipliers.`
+          : `Market mood supports holding the deterministic ${display} trend-aware multipliers.`,
+    deterministic_trend_aware_multipliers: {
+      tenor_le_14d: deterministicMultipliers.tenor_le_14d,
+      tenor_le_30d: deterministicMultipliers.tenor_le_30d,
+      tenor_le_60d: deterministicMultipliers.tenor_le_60d,
+      tenor_le_90d: deterministicMultipliers.tenor_le_90d,
+      tenor_le_180d: deterministicMultipliers.tenor_le_180d,
+      tenor_gt_180d: deterministicMultipliers.tenor_gt_180d,
+    },
+    llm_recommended_trend_aware_multipliers: recommendedMultipliers,
+    primary_trend_aware_tenor: "tenor_le_30d",
+    deterministic_primary_trend_multiplier: deterministicMultipliers.tenor_le_30d,
+    recommended_primary_trend_multiplier: recommendedMultipliers.tenor_le_30d,
+    trend_adjustment_direction: adjustmentDirection,
+    trend_adjustment_pct: adjustmentPct,
+    trend_adjustment_confidence: Number((confidence - 0.05).toFixed(2)),
+    trend_adjustment_rationale:
+      "The overlay is driven by the cited policy/liquidity context and market mood, then applied conservatively to the deterministic tenor multiplier map.",
+    trend_driver_evidence: [
+      `${cbank[quote] ?? "Central-bank"} policy/liquidity context`,
+      "Importer demand and offshore positioning tone",
+    ],
     supporting_points: [
       `Realized vol acceleration of ${snapshot.current_volatility_readings.accel_vs_252d.toFixed(2)}x is consistent with the ${regime} band.`,
       `${cbank[quote] ?? "Central-bank"} guidance does not contradict the current read.`,
@@ -489,8 +547,18 @@ function buildValidationRun(snapshot: RegimeSnapshot): ValidationRun {
     status,
     model_name: "anthropic/claude-sonnet-4.5",
     prompt_version: "market-regime-validation-v1",
+    run_source: "scheduled",
     confidence,
     rationale: result.rationale,
+    market_sentiment: result.market_sentiment,
+    trend_adjustment_direction: result.trend_adjustment_direction,
+    trend_adjustment_pct: result.trend_adjustment_pct,
+    trend_adjustment_confidence: result.trend_adjustment_confidence,
+    deterministic_primary_trend_multiplier: result.deterministic_primary_trend_multiplier,
+    recommended_primary_trend_multiplier: result.recommended_primary_trend_multiplier,
+    primary_trend_aware_tenor: result.primary_trend_aware_tenor,
+    deterministic_trend_aware_multipliers: result.deterministic_trend_aware_multipliers,
+    llm_recommended_trend_aware_multipliers: result.llm_recommended_trend_aware_multipliers,
     created_at: `${snapshot.as_of_date}T07:42:00Z`,
     result,
     independent_scorer_results: independent,

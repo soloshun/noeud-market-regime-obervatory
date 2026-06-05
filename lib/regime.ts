@@ -13,8 +13,11 @@ import type {
   CompositeSignal,
   RecommendedAction,
   RegimeLabel,
+  MarketSentiment,
   TrendSignal,
+  TrendAdjustmentDirection,
   ValidationStatus,
+  ValidationRunSource,
 } from "@/lib/types";
 
 type Tone = {
@@ -142,6 +145,28 @@ export const ACTION_LABELS: Record<RecommendedAction, string> = {
   monitor_closely: "Monitor Closely",
   escalate_for_human_review: "Escalate for Human Review",
   rerun_with_deeper_research: "Rerun With Deeper Research",
+};
+
+export const MARKET_SENTIMENT_LABELS: Record<MarketSentiment, string> = {
+  volatility_dampening: "Volatility Dampening",
+  volatility_amplifying: "Volatility Amplifying",
+  mixed: "Mixed",
+  unclear: "Unclear",
+};
+
+export const TREND_ADJUSTMENT_LABELS: Record<TrendAdjustmentDirection, string> = {
+  increase: "Increase",
+  decrease: "Decrease",
+  hold: "Hold",
+  insufficient_evidence: "Insufficient Evidence",
+};
+
+export const VALIDATION_RUN_SOURCE_LABELS: Record<ValidationRunSource, string> = {
+  scheduled: "Scheduled",
+  manual: "Manual",
+  backfill: "Backfill",
+  test: "Test",
+  unknown: "Unknown",
 };
 
 /** Term-structure & multiplier tenor buckets, ordered for charts/tables. */

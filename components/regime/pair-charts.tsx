@@ -16,7 +16,7 @@ import {
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { formatNumber, formatRate, formatVol } from "@/lib/format";
+import { formatMultiplier, formatNumber, formatRate, formatVol } from "@/lib/format";
 import { MULTIPLIER_BUCKETS, REGIME_TONES, TENOR_BUCKETS } from "@/lib/regime";
 import {
   REGIME_BREAKPOINTS,
@@ -28,6 +28,7 @@ import type {
   RegimeLabel,
   RegimeSnapshot,
   RawPriceObservation,
+  ValidationRun,
 } from "@/lib/types";
 
 const VOL_WINDOWS: { key: keyof RegimeSnapshot["current_volatility_readings"]; label: string }[] = [
@@ -321,6 +322,81 @@ export function MultiplierChart({ snapshot }: { snapshot: RegimeSnapshot }) {
               ))}
             </Bar>
           </BarChart>
+        </ChartContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function TrendAwareMultiplierOverlayChart({
+  snapshot,
+  validation,
+}: {
+  snapshot: RegimeSnapshot;
+  validation?: ValidationRun;
+}) {
+  const deterministic = snapshot.dynamic_trend_aware_regime_multiplier;
+  const recommended = validation?.result.llm_recommended_trend_aware_multipliers;
+  const data = MULTIPLIER_BUCKETS.map((bucket) => ({
+    tenor: bucket.label,
+    deterministic: deterministic[bucket.key as keyof typeof deterministic] as number,
+    recommended:
+      recommended?.[bucket.key as keyof typeof recommended] ??
+      (deterministic[bucket.key as keyof typeof deterministic] as number),
+  }));
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Trend-Aware Multiplier Overlay</CardTitle>
+        <CardDescription>
+          Deterministic engine multipliers versus LLM sentiment-adjusted recommendations
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer
+          config={{
+            deterministic: { label: "Deterministic", color: "var(--chart-3)" },
+            recommended: { label: "LLM Recommended", color: "var(--chart-1)" },
+          }}
+          className="aspect-auto h-[280px] w-full"
+        >
+          <LineChart data={data} margin={{ top: 8, right: 16, left: 4, bottom: 0 }}>
+            <CartesianGrid vertical={false} />
+            <XAxis dataKey="tenor" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} />
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              width={42}
+              domain={[MULTIPLIER_FLOOR, MULTIPLIER_CEILING]}
+              fontSize={11}
+              tickFormatter={(value) => `${formatNumber(Number(value), 1)}x`}
+            />
+            <ReferenceLine y={MULTIPLIER_FLOOR} stroke="var(--muted-foreground)" strokeDasharray="3 3" strokeOpacity={0.4} />
+            <ReferenceLine y={MULTIPLIER_CEILING} stroke="var(--muted-foreground)" strokeDasharray="3 3" strokeOpacity={0.4} />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  formatter={(value) => formatMultiplier(Number(value))}
+                />
+              }
+            />
+            <Line
+              dataKey="deterministic"
+              type="monotone"
+              stroke="var(--color-deterministic)"
+              strokeWidth={2}
+              dot={{ r: 3, fill: "var(--color-deterministic)" }}
+            />
+            <Line
+              dataKey="recommended"
+              type="monotone"
+              stroke="var(--color-recommended)"
+              strokeWidth={2}
+              strokeDasharray={validation ? undefined : "4 4"}
+              dot={{ r: 3, fill: "var(--color-recommended)" }}
+            />
+          </LineChart>
         </ChartContainer>
       </CardContent>
     </Card>

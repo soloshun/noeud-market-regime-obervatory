@@ -19,8 +19,12 @@ import type {
   RegimeLabel,
   RegimeSnapshot,
   ResearchBrief,
+  MarketSentiment,
+  TrendAdjustmentDirection,
+  TrendAwareMultiplierMap,
   ValidationResult,
   ValidationRun,
+  ValidationRunSource,
   ValidationStatus,
 } from "@/lib/types";
 
@@ -62,9 +66,19 @@ type ValidationRow = {
   status: string;
   model_name: string;
   prompt_version: string | null;
+  run_source: string | null;
   output_payload: JsonRecord | null;
   rationale: string | null;
   confidence: number | null;
+  market_sentiment: string | null;
+  trend_adjustment_direction: string | null;
+  trend_adjustment_pct: number | null;
+  trend_adjustment_confidence: number | null;
+  deterministic_primary_trend_multiplier: number | null;
+  recommended_primary_trend_multiplier: number | null;
+  primary_trend_aware_tenor: string | null;
+  deterministic_trend_aware_multipliers: JsonRecord | null;
+  llm_recommended_trend_aware_multipliers: JsonRecord | null;
   created_at: string;
 };
 
@@ -181,6 +195,13 @@ function isValidationStatus(value: unknown): value is ValidationStatus {
   ].includes(String(value));
 }
 
+function validationRunSource(value: unknown): ValidationRunSource {
+  if (["scheduled", "manual", "backfill", "test"].includes(String(value))) {
+    return value as ValidationRunSource;
+  }
+  return "unknown";
+}
+
 function isRecommendedAction(value: unknown): value is RecommendedAction {
   return [
     "accept_deterministic_read",
@@ -188,6 +209,42 @@ function isRecommendedAction(value: unknown): value is RecommendedAction {
     "escalate_for_human_review",
     "rerun_with_deeper_research",
   ].includes(String(value));
+}
+
+function isMarketSentiment(value: unknown): value is MarketSentiment {
+  return [
+    "volatility_dampening",
+    "volatility_amplifying",
+    "mixed",
+    "unclear",
+  ].includes(String(value));
+}
+
+function isTrendAdjustmentDirection(value: unknown): value is TrendAdjustmentDirection {
+  return ["increase", "decrease", "hold", "insufficient_evidence"].includes(String(value));
+}
+
+function isTrendAwareTenor(value: unknown): value is keyof TrendAwareMultiplierMap {
+  return [
+    "tenor_le_14d",
+    "tenor_le_30d",
+    "tenor_le_60d",
+    "tenor_le_90d",
+    "tenor_le_180d",
+    "tenor_gt_180d",
+  ].includes(String(value));
+}
+
+function trendAwareMapFromRecord(value: unknown, fallback = 0): TrendAwareMultiplierMap {
+  const record = asRecord(value);
+  return {
+    tenor_le_14d: asNumber(record.tenor_le_14d, fallback),
+    tenor_le_30d: asNumber(record.tenor_le_30d, fallback),
+    tenor_le_60d: asNumber(record.tenor_le_60d, fallback),
+    tenor_le_90d: asNumber(record.tenor_le_90d, fallback),
+    tenor_le_180d: asNumber(record.tenor_le_180d, fallback),
+    tenor_gt_180d: asNumber(record.tenor_gt_180d, fallback),
+  };
 }
 
 function snapshotFromRow(row: SnapshotRow): RegimeSnapshot {
@@ -223,6 +280,8 @@ function fallbackResearchBrief(pair: string, asOf: string): ResearchBrief {
     macro_context: "No research brief was stored for this validation run.",
     central_bank_context: "No central-bank context was stored for this validation run.",
     currency_specific_context: "No currency-specific context was stored.",
+    market_sentiment_summary: "No market sentiment summary was stored.",
+    policy_liquidity_context: "No policy/liquidity context was stored.",
     risk_events: [],
     evidence: [],
     retrieval_model: "unknown",
@@ -264,6 +323,31 @@ function validationResultFromPayload(
   const action = isRecommendedAction(record.recommended_action)
     ? record.recommended_action
     : "rerun_with_deeper_research";
+  const deterministicMultipliers = trendAwareMapFromRecord(
+    record.deterministic_trend_aware_multipliers ??
+      row.deterministic_trend_aware_multipliers,
+    asNumber(row.deterministic_primary_trend_multiplier, 0),
+  );
+  const recommendedMultipliers = trendAwareMapFromRecord(
+    record.llm_recommended_trend_aware_multipliers ??
+      row.llm_recommended_trend_aware_multipliers,
+    asNumber(row.recommended_primary_trend_multiplier, 0),
+  );
+  const primaryTenor = isTrendAwareTenor(
+    record.primary_trend_aware_tenor ?? row.primary_trend_aware_tenor,
+  )
+    ? (record.primary_trend_aware_tenor ?? row.primary_trend_aware_tenor)
+    : "tenor_le_30d";
+  const marketSentimentValue = record.market_sentiment ?? row.market_sentiment;
+  const marketSentiment: MarketSentiment = isMarketSentiment(marketSentimentValue)
+    ? marketSentimentValue
+    : "unclear";
+  const trendDirectionValue = record.trend_adjustment_direction ?? row.trend_adjustment_direction;
+  const trendAdjustmentDirection: TrendAdjustmentDirection = isTrendAdjustmentDirection(
+    trendDirectionValue,
+  )
+    ? trendDirectionValue
+    : "insufficient_evidence";
 
   return {
     pair,
@@ -278,6 +362,36 @@ function validationResultFromPayload(
       "Validation output did not include a summary.",
     ),
     rationale: asString(record.rationale, row.rationale ?? ""),
+    market_sentiment: marketSentiment,
+    trend_aware_validation_summary: asString(
+      record.trend_aware_validation_summary,
+      asString(record.validation_summary, "No trend-aware summary stored."),
+    ),
+    deterministic_trend_aware_multipliers: deterministicMultipliers,
+    llm_recommended_trend_aware_multipliers: recommendedMultipliers,
+    primary_trend_aware_tenor: primaryTenor as keyof TrendAwareMultiplierMap,
+    deterministic_primary_trend_multiplier: asNumber(
+      record.deterministic_primary_trend_multiplier,
+      asNumber(row.deterministic_primary_trend_multiplier, deterministicMultipliers.tenor_le_30d),
+    ),
+    recommended_primary_trend_multiplier: asNumber(
+      record.recommended_primary_trend_multiplier,
+      asNumber(row.recommended_primary_trend_multiplier, recommendedMultipliers.tenor_le_30d),
+    ),
+    trend_adjustment_direction: trendAdjustmentDirection,
+    trend_adjustment_pct: asNumber(
+      record.trend_adjustment_pct,
+      asNumber(row.trend_adjustment_pct, 0),
+    ),
+    trend_adjustment_confidence: asNumber(
+      record.trend_adjustment_confidence,
+      asNumber(row.trend_adjustment_confidence, 0),
+    ),
+    trend_adjustment_rationale: asString(
+      record.trend_adjustment_rationale,
+      asString(record.rationale, row.rationale ?? ""),
+    ),
+    trend_driver_evidence: asArray<string>(record.trend_driver_evidence),
     supporting_points: asArray<string>(record.supporting_points),
     contradicting_points: asArray<string>(record.contradicting_points),
     watch_items: asArray<string>(record.watch_items),
@@ -307,8 +421,26 @@ function validationFromRow(row: ValidationRow): ValidationRun {
     status: isValidationStatus(row.status) ? row.status : result.status,
     model_name: row.model_name,
     prompt_version: row.prompt_version,
+    run_source: validationRunSource(row.run_source),
     confidence: row.confidence,
     rationale: row.rationale,
+    market_sentiment: isMarketSentiment(row.market_sentiment) ? row.market_sentiment : null,
+    trend_adjustment_direction: isTrendAdjustmentDirection(row.trend_adjustment_direction)
+      ? row.trend_adjustment_direction
+      : null,
+    trend_adjustment_pct: row.trend_adjustment_pct,
+    trend_adjustment_confidence: row.trend_adjustment_confidence,
+    deterministic_primary_trend_multiplier: row.deterministic_primary_trend_multiplier,
+    recommended_primary_trend_multiplier: row.recommended_primary_trend_multiplier,
+    primary_trend_aware_tenor: isTrendAwareTenor(row.primary_trend_aware_tenor)
+      ? row.primary_trend_aware_tenor
+      : null,
+    deterministic_trend_aware_multipliers: row.deterministic_trend_aware_multipliers
+      ? trendAwareMapFromRecord(row.deterministic_trend_aware_multipliers)
+      : null,
+    llm_recommended_trend_aware_multipliers: row.llm_recommended_trend_aware_multipliers
+      ? trendAwareMapFromRecord(row.llm_recommended_trend_aware_multipliers)
+      : null,
     created_at: row.created_at,
     result,
     independent_scorer_results: independent,

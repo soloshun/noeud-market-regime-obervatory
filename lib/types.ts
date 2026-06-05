@@ -188,6 +188,8 @@ export type ResearchBrief = {
   macro_context: string;
   central_bank_context: string;
   currency_specific_context: string;
+  market_sentiment_summary: string;
+  policy_liquidity_context: string;
   risk_events: string[];
   evidence: ResearchEvidenceItem[];
   retrieval_model: string;
@@ -204,6 +206,29 @@ export type RecommendedAction =
   | "monitor_closely"
   | "escalate_for_human_review"
   | "rerun_with_deeper_research";
+
+export type MarketSentiment =
+  | "volatility_dampening"
+  | "volatility_amplifying"
+  | "mixed"
+  | "unclear";
+
+export type TrendAdjustmentDirection =
+  | "increase"
+  | "decrease"
+  | "hold"
+  | "insufficient_evidence";
+
+export type ValidationRunSource = "scheduled" | "manual" | "backfill" | "test" | "unknown";
+
+export type TrendAwareMultiplierMap = {
+  tenor_le_14d: number;
+  tenor_le_30d: number;
+  tenor_le_60d: number;
+  tenor_le_90d: number;
+  tenor_le_180d: number;
+  tenor_gt_180d: number;
+};
 
 export type LLMCitation = {
   url: string;
@@ -230,6 +255,18 @@ export type ValidationResult = {
   external_context_regime_read: string;
   validation_summary: string;
   rationale: string;
+  market_sentiment: MarketSentiment;
+  trend_aware_validation_summary: string;
+  deterministic_trend_aware_multipliers: TrendAwareMultiplierMap;
+  llm_recommended_trend_aware_multipliers: TrendAwareMultiplierMap;
+  primary_trend_aware_tenor: keyof TrendAwareMultiplierMap;
+  deterministic_primary_trend_multiplier: number;
+  recommended_primary_trend_multiplier: number;
+  trend_adjustment_direction: TrendAdjustmentDirection;
+  trend_adjustment_pct: number;
+  trend_adjustment_confidence: number;
+  trend_adjustment_rationale: string;
+  trend_driver_evidence: string[];
   supporting_points: string[];
   contradicting_points: string[];
   watch_items: string[];
@@ -247,8 +284,18 @@ export type ValidationRun = {
   status: ValidationStatus;
   model_name: string;
   prompt_version: string | null;
+  run_source: ValidationRunSource;
   confidence: number | null;
   rationale: string | null;
+  market_sentiment: MarketSentiment | null;
+  trend_adjustment_direction: TrendAdjustmentDirection | null;
+  trend_adjustment_pct: number | null;
+  trend_adjustment_confidence: number | null;
+  deterministic_primary_trend_multiplier: number | null;
+  recommended_primary_trend_multiplier: number | null;
+  primary_trend_aware_tenor: keyof TrendAwareMultiplierMap | null;
+  deterministic_trend_aware_multipliers: TrendAwareMultiplierMap | null;
+  llm_recommended_trend_aware_multipliers: TrendAwareMultiplierMap | null;
   created_at: string;
   result: ValidationResult;
   independent_scorer_results: ValidationResult[];
