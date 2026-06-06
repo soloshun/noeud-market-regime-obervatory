@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { REGIME_DESCRIPTIONS } from "@/lib/regime";
 
 const REGIME_BANDS = [
@@ -56,6 +57,33 @@ const PIPELINE = [
   { step: "3 · Aggregation", body: "anthropic/claude-sonnet-4.5 aggregates the views using the research brief and citations as the factual anchor — not a majority vote." },
 ];
 
+const BENCHMARK_METRICS = [
+  {
+    name: "Quant implied volatility",
+    body: "The frozen deterministic baseline: vol_252d multiplied by the quant trend-aware multiplier for each tenor.",
+  },
+  {
+    name: "LLM implied volatility",
+    body: "The same vol_252d baseline multiplied by the LLM-recommended multiplier. This keeps the comparison focused on the overlay decision, not a different volatility anchor.",
+  },
+  {
+    name: "Realized forward volatility",
+    body: "The annualized volatility that actually occurred between the validation date and the tenor maturity date.",
+  },
+  {
+    name: "LLM lift",
+    body: "Quant absolute error minus LLM absolute error. Positive lift means the LLM overlay was closer to the realized outcome.",
+  },
+  {
+    name: "Direction hit",
+    body: "Checks whether the LLM's increase, decrease, or hold call agreed with the matured realized volatility after a 5% tolerance band.",
+  },
+  {
+    name: "Undercoverage",
+    body: "Flags whether realized volatility exceeded the implied volatility level. Lower undercoverage can mean better risk protection, but may also imply more conservative hedging.",
+  },
+];
+
 export default function HelpPage() {
   return (
     <>
@@ -63,79 +91,149 @@ export default function HelpPage() {
         Methodology
       </SectionTitle>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Regime Bands</CardTitle>
-          <CardDescription>
-            Regimes are classified purely from acceleration — the 30d / 252d volatility ratio.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="px-6">Regime</TableHead>
-                <TableHead>Acceleration band</TableHead>
-                <TableHead>Score</TableHead>
-                <TableHead className="px-6">Reading</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {REGIME_BANDS.map((b) => (
-                <TableRow key={b.regime}>
-                  <TableCell className="px-6"><RegimeBadge regime={b.regime} /></TableCell>
-                  <TableCell className="font-mono text-sm">{b.range}</TableCell>
-                  <TableCell className="font-mono">{b.score}</TableCell>
-                  <TableCell className="px-6 text-sm text-muted-foreground">
-                    {REGIME_DESCRIPTIONS[b.regime]}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="methodology" className="gap-4">
+        <TabsList>
+          <TabsTrigger value="methodology">Engine Methodology</TabsTrigger>
+          <TabsTrigger value="validation">LLM Validation</TabsTrigger>
+          <TabsTrigger value="performance">Performance Lab</TabsTrigger>
+        </TabsList>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {METRICS.map((m) => (
-          <Card key={m.name}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">{m.name}</CardTitle>
+        <TabsContent value="methodology" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Regime Bands</CardTitle>
+              <CardDescription>
+                Regimes are classified purely from acceleration, the 30d / 252d volatility ratio.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="text-sm leading-relaxed text-muted-foreground">{m.body}</CardContent>
+            <CardContent className="px-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="px-6">Regime</TableHead>
+                    <TableHead>Acceleration band</TableHead>
+                    <TableHead>Score</TableHead>
+                    <TableHead className="px-6">Reading</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {REGIME_BANDS.map((b) => (
+                    <TableRow key={b.regime}>
+                      <TableCell className="px-6">
+                        <RegimeBadge regime={b.regime} />
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {b.range}
+                      </TableCell>
+                      <TableCell className="font-mono">{b.score}</TableCell>
+                      <TableCell className="px-6 text-sm text-muted-foreground">
+                        {REGIME_DESCRIPTIONS[b.regime]}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
           </Card>
-        ))}
-      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">LLM Validation Pipeline</CardTitle>
-          <CardDescription>
-            The intelligence layer validates the deterministic snapshot. It never overrides the engine — the calculation is always the source of truth.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {PIPELINE.map((p) => (
-            <div key={p.step} className="rounded-lg border p-4">
-              <div className="text-sm font-semibold">{p.step}</div>
-              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{p.body}</p>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {METRICS.map((m) => (
+              <Card key={m.name}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">{m.name}</CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm leading-relaxed text-muted-foreground">
+                  {m.body}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Data Source</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm leading-relaxed text-muted-foreground">
-          Prices are ingested daily from yfinance and normalized into per-pair daily closes. Sparse direct
-          histories (e.g. GBP/GHS) are synthesized from liquid USD anchor legs, then overlaid with any direct
-          quotes Yahoo provides. The deterministic engine reads stored prices, computes the snapshot, and persists
-          it; the LLM layer validates the latest snapshot against grounded market context. This observatory reads
-          those snapshots, validation runs, and provider runs through the internal API.
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Data Source</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm leading-relaxed text-muted-foreground">
+              Prices are ingested daily from yfinance and normalized into per-pair daily closes. Sparse direct
+              histories such as GBP/GHS are synthesized from liquid USD anchor legs, then overlaid with any direct
+              quotes Yahoo provides. The deterministic engine reads stored prices, computes the snapshot, and persists
+              it; the observatory reads snapshots, validation runs, provider runs, and benchmark rows through Supabase.
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="validation" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">LLM Validation Pipeline</CardTitle>
+              <CardDescription>
+                The intelligence layer validates the trend-aware multiplier ladder. It does not overwrite the deterministic snapshot.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {PIPELINE.map((p) => (
+                <div key={p.step} className="rounded-lg border p-4">
+                  <div className="text-sm font-semibold">{p.step}</div>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                    {p.body}
+                  </p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Trend-Aware Focus</CardTitle>
+              <CardDescription>
+                The model receives the full deterministic payload, but its recommendation is centered on the multiplier ladder from 14d through 180d+.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm leading-relaxed text-muted-foreground">
+              The LLM reads recent market context over the configured lookback window, checks whether that context implies higher, lower, or stable volatility pressure, then returns its own recommended multiplier map beside the quant map. The UI shows both ladders side by side so the finance team can see exactly where the model agrees, tightens, or relaxes the deterministic trend-aware view.
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="performance" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Performance Benchmark</CardTitle>
+              <CardDescription>
+                Benchmark rows are scored only after enough future price data exists for the tenor window.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm leading-relaxed text-muted-foreground">
+              Each LLM validation freezes the quant multipliers, the LLM-recommended multipliers, the baseline 252d volatility, and the validation date. The benchmark evaluator waits for each tenor to mature, calculates realized forward volatility, and compares the quant-implied and LLM-implied levels against what actually happened.
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {BENCHMARK_METRICS.map((m) => (
+              <Card key={m.name}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">{m.name}</CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm leading-relaxed text-muted-foreground">
+                  {m.body}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Automation</CardTitle>
+              <CardDescription>
+                The benchmark flow is deployed separately from daily ingestion, calculation, and LLM validation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm leading-relaxed text-muted-foreground">
+              Prefect runs the benchmark evaluator weekly by default. The flow scans stored validation runs, writes matured results to the benchmark table, and leaves fresh windows pending until their future prices exist. Manual dry-runs remain useful for debugging, but the deployed workflow is the source of the ongoing Performance Lab feed.
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </>
   );
 }

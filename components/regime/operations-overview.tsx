@@ -47,8 +47,12 @@ function Metric({
         <Icon className="size-3.5" />
         <span>{label}</span>
       </div>
-      <div className="mt-1 font-mono text-xl font-semibold tabular-nums">{value}</div>
-      <div className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</div>
+      <div className="mt-1 font-mono text-xl font-semibold tabular-nums">
+        {value}
+      </div>
+      <div className="mt-0.5 truncate text-xs text-muted-foreground">
+        {hint}
+      </div>
     </div>
   );
 }
@@ -68,7 +72,9 @@ export function TrendOverlayMatrix({
   snapshots: RegimeSnapshot[];
   validations: ValidationRun[];
 }) {
-  const validationByPair = new Map(validations.map((run) => [run.pair_code, run]));
+  const validationByPair = new Map(
+    validations.map((run) => [run.pair_code, run]),
+  );
   const rows = snapshots
     .map((snapshot) => {
       const validation = validationByPair.get(snapshot.pair);
@@ -88,7 +94,8 @@ export function TrendOverlayMatrix({
             Trend-Aware Quant / LLM Strip
           </h3>
           <p className="text-xs text-muted-foreground">
-            Deterministic multiplier ladder beside the latest LLM sentiment overlay
+            Deterministic multiplier ladder beside the latest LLM sentiment
+            overlay
           </p>
         </div>
         <span className="rounded border bg-background px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
@@ -111,13 +118,21 @@ export function TrendOverlayMatrix({
           </thead>
           <tbody>
             {rows.map(({ snapshot, validation }) => {
-              const quant = validation?.result.deterministic_trend_aware_multipliers ??
+              const quant =
+                validation?.result.deterministic_trend_aware_multipliers ??
                 snapshot.dynamic_trend_aware_regime_multiplier;
-              const llm = validation?.result.llm_recommended_trend_aware_multipliers;
+              const llm =
+                validation?.result.llm_recommended_trend_aware_multipliers;
               return (
-                <tr key={snapshot.pair} className="border-b last:border-b-0 hover:bg-muted/25">
+                <tr
+                  key={snapshot.pair}
+                  className="border-b last:border-b-0 hover:bg-muted/25"
+                >
                   <td className="px-3 py-2">
-                    <Link href={`/pairs/${snapshot.pair}`} className="font-mono font-semibold hover:underline">
+                    <Link
+                      href={`/pairs/${snapshot.pair}`}
+                      className="font-mono font-semibold hover:underline"
+                    >
                       {snapshot.display_pair}
                     </Link>
                     <div className="mt-0.5 text-[11px] text-muted-foreground">
@@ -126,23 +141,37 @@ export function TrendOverlayMatrix({
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">
                     {validation
-                      ? MARKET_SENTIMENT_LABELS[validation.result.market_sentiment]
+                      ? MARKET_SENTIMENT_LABELS[
+                          validation.result.market_sentiment
+                        ]
                       : "Awaiting LLM"}
                   </td>
                   <td className="px-3 py-2">
                     {validation ? (
                       <span className="font-mono">
-                        {TREND_ADJUSTMENT_LABELS[validation.result.trend_adjustment_direction]}
+                        {
+                          TREND_ADJUSTMENT_LABELS[
+                            validation.result.trend_adjustment_direction
+                          ]
+                        }
                         <span
                           className={cn(
                             "ml-2 tabular-nums",
-                            validation.result.trend_adjustment_pct > 0 && "text-red-600 dark:text-red-400",
-                            validation.result.trend_adjustment_pct < 0 && "text-emerald-600 dark:text-emerald-400",
-                            validation.result.trend_adjustment_pct === 0 && "text-muted-foreground",
+                            validation.result.trend_adjustment_pct > 0 &&
+                              "text-red-600 dark:text-red-400",
+                            validation.result.trend_adjustment_pct < 0 &&
+                              "text-emerald-600 dark:text-emerald-400",
+                            validation.result.trend_adjustment_pct === 0 &&
+                              "text-muted-foreground",
                           )}
                         >
-                          {validation.result.trend_adjustment_pct > 0 ? "+" : ""}
-                          {formatPercent(validation.result.trend_adjustment_pct, 1)}
+                          {validation.result.trend_adjustment_pct > 0
+                            ? "+"
+                            : ""}
+                          {formatPercent(
+                            validation.result.trend_adjustment_pct,
+                            1,
+                          )}
                         </span>
                       </span>
                     ) : (
@@ -154,14 +183,21 @@ export function TrendOverlayMatrix({
                     const l = llm?.[bucket.key];
                     const diff = l == null || q === 0 ? 0 : l / q - 1;
                     return (
-                      <td key={bucket.key} className="px-3 py-2 text-right font-mono tabular-nums">
+                      <td
+                        key={bucket.key}
+                        className="px-3 py-2 text-right font-mono tabular-nums"
+                      >
                         <div>{formatMultiplier(q)}</div>
                         <div
                           className={cn(
                             "text-[11px]",
                             l == null && "text-muted-foreground",
-                            l != null && diff > 0 && "text-red-600 dark:text-red-400",
-                            l != null && diff < 0 && "text-emerald-600 dark:text-emerald-400",
+                            l != null &&
+                              diff > 0 &&
+                              "text-red-600 dark:text-red-400",
+                            l != null &&
+                              diff < 0 &&
+                              "text-emerald-600 dark:text-emerald-400",
                             l != null && diff === 0 && "text-muted-foreground",
                           )}
                         >
@@ -180,7 +216,7 @@ export function TrendOverlayMatrix({
   );
 }
 
-export function OperationsOverview({
+export function OperationsMetricStrip({
   snapshots,
   validations,
   providerRuns,
@@ -224,18 +260,6 @@ export function OperationsOverview({
     (run) => !["success", "succeeded", "skipped"].includes(run.status),
   );
   const lastRun = latestRun(providerRuns);
-  const focusPairs = [...snapshots]
-    .sort((a, b) => {
-      const bScore =
-        b.current_volatility_readings.regime_score * 10 +
-        b.current_volatility_readings.accel_vs_252d;
-      const aScore =
-        a.current_volatility_readings.regime_score * 10 +
-        a.current_volatility_readings.accel_vs_252d;
-      return bScore - aScore;
-    })
-    .slice(0, 5);
-  const validationByPair = new Map(validations.map((run) => [run.pair_code, run]));
 
   return (
     <section className="space-y-5 border-b pb-5">
@@ -273,13 +297,19 @@ export function OperationsOverview({
         <Metric
           icon={ShieldCheckIcon}
           label="VaR Pass Rate"
-          value={formatPercent(backtestPasses / Math.max(snapshots.length, 1), 0)}
+          value={formatPercent(
+            backtestPasses / Math.max(snapshots.length, 1),
+            0,
+          )}
           hint="99% historical coverage"
         />
         <Metric
           icon={SparklesIcon}
           label="LLM Alignment"
-          value={formatPercent(validationAligned / Math.max(validations.length, 1), 0)}
+          value={formatPercent(
+            validationAligned / Math.max(validations.length, 1),
+            0,
+          )}
           hint={`${validationEscalations.length} escalation flags`}
         />
         <Metric
@@ -292,10 +322,52 @@ export function OperationsOverview({
           icon={CheckCircle2Icon}
           label="Last Provider Run"
           value={lastRun?.status ?? "--"}
-          hint={lastRun ? `${lastRun.pair_code} · ${formatDateTime(lastRun.completed_at)}` : "--"}
+          hint={
+            lastRun
+              ? `${lastRun.pair_code} · ${formatDateTime(lastRun.completed_at)}`
+              : "--"
+          }
         />
       </div>
 
+      {failedRuns.length > 0 && (
+        <div className="rounded-md border border-red-600/25 bg-red-600/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+          {failedRuns.length} provider run{failedRuns.length === 1 ? "" : "s"} need review.
+        </div>
+      )}
+    </section>
+  );
+}
+
+export function OperationsSupportPanels({
+  snapshots,
+  validations,
+  providerRuns,
+}: {
+  snapshots: RegimeSnapshot[];
+  validations: ValidationRun[];
+  providerRuns: ProviderRun[];
+}) {
+  const failedRuns = providerRuns.filter(
+    (run) => !["success", "succeeded", "skipped"].includes(run.status),
+  );
+  const focusPairs = [...snapshots]
+    .sort((a, b) => {
+      const bScore =
+        b.current_volatility_readings.regime_score * 10 +
+        b.current_volatility_readings.accel_vs_252d;
+      const aScore =
+        a.current_volatility_readings.regime_score * 10 +
+        a.current_volatility_readings.accel_vs_252d;
+      return bScore - aScore;
+    })
+    .slice(0, 5);
+  const validationByPair = new Map(
+    validations.map((run) => [run.pair_code, run]),
+  );
+
+  return (
+    <section className="border-b pb-5">
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.3fr_1fr]">
         <div className="rounded-lg border">
           <div className="flex items-center justify-between border-b px-4 py-3">
@@ -331,21 +403,32 @@ export function OperationsOverview({
                   </div>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <RegimeBadge regime={vol.regime} score={vol.regime_score} />
-                      {validation && <ValidationStatusBadge status={validation.status} />}
+                      <RegimeBadge
+                        regime={vol.regime}
+                        score={vol.regime_score}
+                      />
+                      {validation && (
+                        <ValidationStatusBadge status={validation.status} />
+                      )}
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-3 text-xs">
                       <span>
                         <span className="text-muted-foreground">Accel </span>
-                        <span className="font-mono">{formatNumber(vol.accel_vs_252d, 2)}x</span>
+                        <span className="font-mono">
+                          {formatNumber(vol.accel_vs_252d, 2)}x
+                        </span>
                       </span>
                       <span>
                         <span className="text-muted-foreground">30d </span>
-                        <span className="font-mono">{formatPercent(vol.vol_30d, 1)}</span>
+                        <span className="font-mono">
+                          {formatPercent(vol.vol_30d, 1)}
+                        </span>
                       </span>
                       <span>
                         <span className="text-muted-foreground">252d </span>
-                        <span className="font-mono">{formatPercent(vol.vol_252d, 1)}</span>
+                        <span className="font-mono">
+                          {formatPercent(vol.vol_252d, 1)}
+                        </span>
                       </span>
                     </div>
                   </div>
@@ -377,7 +460,9 @@ export function OperationsOverview({
 
         <div className="rounded-lg border">
           <div className="border-b px-4 py-3">
-            <h3 className="text-sm font-medium">Trend-Aware Validation State</h3>
+            <h3 className="text-sm font-medium">
+              Trend-Aware Validation State
+            </h3>
             <p className="text-xs text-muted-foreground">
               Latest multiplier overlay verdicts and market sentiment
             </p>
@@ -400,10 +485,22 @@ export function OperationsOverview({
                 </p>
                 <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                   <span>{run.result.trend_adjustment_direction}</span>
-                  <span className={cn("size-1 rounded-full bg-muted-foreground/40")} />
-                  <span>{formatPercent(run.result.trend_adjustment_pct, 1)} overlay</span>
-                  <span className={cn("size-1 rounded-full bg-muted-foreground/40")} />
-                  <span>{formatNumber(run.result.trend_adjustment_confidence * 100, 0)}% confidence</span>
+                  <span
+                    className={cn("size-1 rounded-full bg-muted-foreground/40")}
+                  />
+                  <span>
+                    {formatPercent(run.result.trend_adjustment_pct, 1)} overlay
+                  </span>
+                  <span
+                    className={cn("size-1 rounded-full bg-muted-foreground/40")}
+                  />
+                  <span>
+                    {formatNumber(
+                      run.result.trend_adjustment_confidence * 100,
+                      0,
+                    )}
+                    % confidence
+                  </span>
                 </div>
               </Link>
             ))}
@@ -411,5 +508,33 @@ export function OperationsOverview({
         </div>
       </div>
     </section>
+  );
+}
+
+export function OperationsOverview({
+  snapshots,
+  validations,
+  providerRuns,
+  asOf,
+}: {
+  snapshots: RegimeSnapshot[];
+  validations: ValidationRun[];
+  providerRuns: ProviderRun[];
+  asOf: string | null;
+}) {
+  return (
+    <>
+      <OperationsMetricStrip
+        snapshots={snapshots}
+        validations={validations}
+        providerRuns={providerRuns}
+        asOf={asOf}
+      />
+      <OperationsSupportPanels
+        snapshots={snapshots}
+        validations={validations}
+        providerRuns={providerRuns}
+      />
+    </>
   );
 }
