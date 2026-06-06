@@ -332,7 +332,8 @@ export function OperationsMetricStrip({
 
       {failedRuns.length > 0 && (
         <div className="rounded-md border border-red-600/25 bg-red-600/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">
-          {failedRuns.length} provider run{failedRuns.length === 1 ? "" : "s"} need review.
+          {failedRuns.length} provider run{failedRuns.length === 1 ? "" : "s"}{" "}
+          need review.
         </div>
       )}
     </section>
