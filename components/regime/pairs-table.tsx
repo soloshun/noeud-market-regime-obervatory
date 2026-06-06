@@ -33,6 +33,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatRate, formatSignedPercent, formatVol } from "@/lib/format";
+import {
+  LOCAL_CURRENCY_MOVE_TITLE,
+  localCurrencyMoveClass,
+  toLocalCurrencyMove,
+} from "@/lib/local-risk";
 import { REGIME_LABELS, type RegimeSnapshot } from "@/lib/types";
 import { useObservatoryStore } from "@/store/observatory-store";
 import { cn } from "@/lib/utils";
@@ -66,7 +71,7 @@ function toRow(s: RegimeSnapshot): Row {
     regime: s.current_volatility_readings.regime,
     regimeScore: s.current_volatility_readings.regime_score,
     spot: s.live_spot_rates.spot_rate,
-    dayChangePct: s.live_spot_rates.day_change_pct,
+    dayChangePct: toLocalCurrencyMove(s.live_spot_rates.day_change_pct),
     accel: s.current_volatility_readings.accel_vs_252d,
     vol30: s.current_volatility_readings.vol_30d,
     vol60: s.current_volatility_readings.vol_60d,
@@ -77,13 +82,6 @@ function toRow(s: RegimeSnapshot): Row {
     var30: s.historical_var.hist_var_99_30day,
     backtest: s.backtest_validation_results.system_status,
   };
-}
-
-function localRiskMoveClass(value: number | null | undefined) {
-  return cn(
-    value != null && value > 0 && "text-red-600 dark:text-red-400",
-    value != null && value < 0 && "text-emerald-600 dark:text-emerald-400",
-  );
 }
 
 function SortHeader({
@@ -175,8 +173,8 @@ export function PairsTable({ snapshots }: { snapshots: RegimeSnapshot[] }) {
           const v = row.original.dayChangePct;
           return (
             <div
-              className={cn("text-right font-mono tabular-nums", localRiskMoveClass(v))}
-              title="Color is local-currency risk: positive USD/GHS means GHS weakness and is shown adverse."
+              className={cn("text-right font-mono tabular-nums", localCurrencyMoveClass(v))}
+              title={LOCAL_CURRENCY_MOVE_TITLE}
             >
               {formatSignedPercent(v)}
             </div>

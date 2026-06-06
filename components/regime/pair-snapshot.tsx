@@ -25,6 +25,11 @@ import {
   formatVol,
   titleCase,
 } from "@/lib/format";
+import {
+  LOCAL_CURRENCY_MOVE_TITLE,
+  localCurrencyMoveClass,
+  toLocalCurrencyMove,
+} from "@/lib/local-risk";
 import { regimeTone } from "@/lib/regime";
 import { cn } from "@/lib/utils";
 import type { RegimeSnapshot } from "@/lib/types";
@@ -32,8 +37,8 @@ import type { RegimeSnapshot } from "@/lib/types";
 export function PairHeaderCard({ snapshot }: { snapshot: RegimeSnapshot }) {
   const v = snapshot.current_volatility_readings;
   const spot = snapshot.live_spot_rates;
-  const up = (spot.day_change ?? 0) >= 0;
-  const localRiskMove = spot.day_change_pct;
+  const localRiskMove = toLocalCurrencyMove(spot.day_change_pct);
+  const up = (localRiskMove ?? 0) >= 0;
   const tone = regimeTone(v.regime);
 
   return (
@@ -63,13 +68,12 @@ export function PairHeaderCard({ snapshot }: { snapshot: RegimeSnapshot }) {
           <span
             className={cn(
               "flex items-center gap-0.5 font-mono text-sm tabular-nums",
-              localRiskMove != null && localRiskMove > 0 && "text-red-600 dark:text-red-400",
-              localRiskMove != null && localRiskMove < 0 && "text-emerald-600 dark:text-emerald-400",
+              localCurrencyMoveClass(localRiskMove),
             )}
-            title="Color is local-currency risk: positive USD/GHS means GHS weakness and is shown adverse."
+            title={LOCAL_CURRENCY_MOVE_TITLE}
           >
             {up ? <ArrowUpRightIcon className="size-3.5" /> : <ArrowDownRightIcon className="size-3.5" />}
-            {formatSignedPercent(spot.day_change_pct)}
+            {formatSignedPercent(localRiskMove)}
           </span>
         </div>
         <HeaderStat label="Acceleration" value={`${formatNumber(v.accel_vs_252d, 2)}x`} />
@@ -187,6 +191,8 @@ function Section({
 
 export function PairSnapshotGrid({ snapshot }: { snapshot: RegimeSnapshot }) {
   const spot = snapshot.live_spot_rates;
+  const localDayChange = toLocalCurrencyMove(spot.day_change);
+  const localDayChangePct = toLocalCurrencyMove(spot.day_change_pct);
   const v = snapshot.current_volatility_readings;
   const t = snapshot.volatility_trend_signals;
   const ts = snapshot.volatility_term_structure;
@@ -203,8 +209,8 @@ export function PairSnapshotGrid({ snapshot }: { snapshot: RegimeSnapshot }) {
           <Section title="Live Spot Rates">
             <Row label="Spot rate" value={formatRate(spot.spot_rate)} />
             <Row label="Prior close" value={formatRate(spot.prior_close)} />
-            <Row label="Day change" value={formatRate(spot.day_change)} />
-            <Row label="Day change %" value={formatSignedPercent(spot.day_change_pct)} />
+            <Row label="Local day change" value={formatRate(localDayChange)} />
+            <Row label="Local day change %" value={formatSignedPercent(localDayChangePct)} />
           </Section>
 
           <Section

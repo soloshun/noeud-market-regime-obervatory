@@ -15,6 +15,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatRate, formatSignedPercent } from "@/lib/format";
+import {
+  LOCAL_CURRENCY_MOVE_TITLE,
+  localCurrencyMoveClass,
+  toLocalCurrencyMove,
+} from "@/lib/local-risk";
 import { regimeTone } from "@/lib/regime";
 import { cn } from "@/lib/utils";
 import { REGIME_LABELS, type RegimeLabel, type RegimeSnapshot } from "@/lib/types";
@@ -24,7 +29,7 @@ type RegimeFilter = RegimeLabel | "ALL";
 function PairTile({ snapshot }: { snapshot: RegimeSnapshot }) {
   const v = snapshot.current_volatility_readings;
   const tone = regimeTone(v.regime);
-  const dc = snapshot.live_spot_rates.day_change_pct;
+  const dc = toLocalCurrencyMove(snapshot.live_spot_rates.day_change_pct);
 
   return (
     <Link href={`/pairs/${snapshot.pair}`}>
@@ -44,10 +49,9 @@ function PairTile({ snapshot }: { snapshot: RegimeSnapshot }) {
             <div
               className={cn(
                 "font-mono text-xs tabular-nums",
-                dc != null && dc > 0 && "text-red-600 dark:text-red-400",
-                dc != null && dc < 0 && "text-emerald-600 dark:text-emerald-400",
+                localCurrencyMoveClass(dc),
               )}
-              title="Color is local-currency risk: positive pair move means quote-currency weakness."
+              title={LOCAL_CURRENCY_MOVE_TITLE}
             >
               {formatSignedPercent(dc)}
             </div>
