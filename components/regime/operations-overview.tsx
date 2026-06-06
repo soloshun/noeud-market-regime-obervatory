@@ -16,11 +16,17 @@ import { Button } from "@/components/ui/button";
 import {
   formatDate,
   formatDateTime,
+  formatMultiplier,
   formatNumber,
   formatPercent,
   formatRate,
 } from "@/lib/format";
-import { regimeTone } from "@/lib/regime";
+import {
+  MARKET_SENTIMENT_LABELS,
+  MULTIPLIER_BUCKETS,
+  TREND_ADJUSTMENT_LABELS,
+  regimeTone,
+} from "@/lib/regime";
 import type { ProviderRun, RegimeSnapshot, ValidationRun } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +59,125 @@ function latestRun(runs: ProviderRun[]) {
     const right = b.completed_at ?? b.requested_at ?? "";
     return right.localeCompare(left);
   })[0];
+}
+
+export function TrendOverlayMatrix({
+  snapshots,
+  validations,
+}: {
+  snapshots: RegimeSnapshot[];
+  validations: ValidationRun[];
+}) {
+  const validationByPair = new Map(validations.map((run) => [run.pair_code, run]));
+  const rows = snapshots
+    .map((snapshot) => {
+      const validation = validationByPair.get(snapshot.pair);
+      return { snapshot, validation };
+    })
+    .sort((a, b) => {
+      const left = Math.abs(a.validation?.result.trend_adjustment_pct ?? 0);
+      const right = Math.abs(b.validation?.result.trend_adjustment_pct ?? 0);
+      return right - left;
+    });
+
+  return (
+    <div className="overflow-hidden rounded-lg border bg-card/95">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/20 px-4 py-3">
+        <div>
+          <h3 className="font-mono text-sm font-semibold uppercase tracking-wide">
+            Trend-Aware Quant / LLM Strip
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Deterministic multiplier ladder beside the latest LLM sentiment overlay
+          </p>
+        </div>
+        <span className="rounded border bg-background px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
+          {validations.length} latest validations
+        </span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1180px] text-xs">
+          <thead>
+            <tr className="border-b bg-muted/10 text-left font-mono uppercase tracking-wide text-muted-foreground">
+              <th className="px-3 py-2">Pair</th>
+              <th className="px-3 py-2">Sentiment</th>
+              <th className="px-3 py-2">Direction</th>
+              {MULTIPLIER_BUCKETS.map((bucket) => (
+                <th key={bucket.key} className="px-3 py-2 text-right">
+                  {bucket.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ snapshot, validation }) => {
+              const quant = validation?.result.deterministic_trend_aware_multipliers ??
+                snapshot.dynamic_trend_aware_regime_multiplier;
+              const llm = validation?.result.llm_recommended_trend_aware_multipliers;
+              return (
+                <tr key={snapshot.pair} className="border-b last:border-b-0 hover:bg-muted/25">
+                  <td className="px-3 py-2">
+                    <Link href={`/pairs/${snapshot.pair}`} className="font-mono font-semibold hover:underline">
+                      {snapshot.display_pair}
+                    </Link>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+                      {snapshot.current_volatility_readings.regime}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-muted-foreground">
+                    {validation
+                      ? MARKET_SENTIMENT_LABELS[validation.result.market_sentiment]
+                      : "Awaiting LLM"}
+                  </td>
+                  <td className="px-3 py-2">
+                    {validation ? (
+                      <span className="font-mono">
+                        {TREND_ADJUSTMENT_LABELS[validation.result.trend_adjustment_direction]}
+                        <span
+                          className={cn(
+                            "ml-2 tabular-nums",
+                            validation.result.trend_adjustment_pct > 0 && "text-red-600 dark:text-red-400",
+                            validation.result.trend_adjustment_pct < 0 && "text-emerald-600 dark:text-emerald-400",
+                            validation.result.trend_adjustment_pct === 0 && "text-muted-foreground",
+                          )}
+                        >
+                          {validation.result.trend_adjustment_pct > 0 ? "+" : ""}
+                          {formatPercent(validation.result.trend_adjustment_pct, 1)}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">--</span>
+                    )}
+                  </td>
+                  {MULTIPLIER_BUCKETS.map((bucket) => {
+                    const q = quant[bucket.key as keyof typeof quant] as number;
+                    const l = llm?.[bucket.key];
+                    const diff = l == null || q === 0 ? 0 : l / q - 1;
+                    return (
+                      <td key={bucket.key} className="px-3 py-2 text-right font-mono tabular-nums">
+                        <div>{formatMultiplier(q)}</div>
+                        <div
+                          className={cn(
+                            "text-[11px]",
+                            l == null && "text-muted-foreground",
+                            l != null && diff > 0 && "text-red-600 dark:text-red-400",
+                            l != null && diff < 0 && "text-emerald-600 dark:text-emerald-400",
+                            l != null && diff === 0 && "text-muted-foreground",
+                          )}
+                        >
+                          LLM {l == null ? "--" : formatMultiplier(l)}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 export function OperationsOverview({

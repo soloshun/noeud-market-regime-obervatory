@@ -5,7 +5,7 @@ import {
   AccelerationLeaderboard,
   RegimeDistributionChart,
 } from "@/components/regime/overview-charts";
-import { OperationsOverview } from "@/components/regime/operations-overview";
+import { OperationsOverview, TrendOverlayMatrix } from "@/components/regime/operations-overview";
 import { PairsTable } from "@/components/regime/pairs-table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProviderRuns, useRegimeOverview, useValidations } from "@/hooks/use-regime";
@@ -26,6 +26,11 @@ export default function OverviewPage() {
 
   return (
     <>
+      <TrendOverlayMatrix
+        snapshots={query.data!.snapshots}
+        validations={validationsQuery.data ?? []}
+      />
+      <PairsTable snapshots={query.data!.snapshots} />
       <OperationsOverview
         snapshots={query.data!.snapshots}
         validations={validationsQuery.data ?? []}
@@ -36,7 +41,6 @@ export default function OverviewPage() {
         <RegimeDistributionChart snapshots={query.data!.snapshots} />
         <AccelerationLeaderboard snapshots={query.data!.snapshots} />
       </div>
-      <PairsTable snapshots={query.data!.snapshots} />
     </>
   );
 }

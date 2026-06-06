@@ -48,6 +48,9 @@ type Row = {
   dayChangePct: number | null;
   accel: number;
   vol30: number;
+  vol60: number;
+  vol90: number;
+  vol180: number;
   vol252: number;
   composite: RegimeSnapshot["volatility_trend_signals"]["composite_signal"];
   var30: number;
@@ -66,11 +69,21 @@ function toRow(s: RegimeSnapshot): Row {
     dayChangePct: s.live_spot_rates.day_change_pct,
     accel: s.current_volatility_readings.accel_vs_252d,
     vol30: s.current_volatility_readings.vol_30d,
+    vol60: s.current_volatility_readings.vol_60d,
+    vol90: s.current_volatility_readings.vol_90d,
+    vol180: s.current_volatility_readings.vol_180d,
     vol252: s.current_volatility_readings.vol_252d,
     composite: s.volatility_trend_signals.composite_signal,
     var30: s.historical_var.hist_var_99_30day,
     backtest: s.backtest_validation_results.system_status,
   };
+}
+
+function localRiskMoveClass(value: number | null | undefined) {
+  return cn(
+    value != null && value > 0 && "text-red-600 dark:text-red-400",
+    value != null && value < 0 && "text-emerald-600 dark:text-emerald-400",
+  );
 }
 
 function SortHeader({
@@ -162,11 +175,8 @@ export function PairsTable({ snapshots }: { snapshots: RegimeSnapshot[] }) {
           const v = row.original.dayChangePct;
           return (
             <div
-              className={cn(
-                "text-right font-mono tabular-nums",
-                v != null && v > 0 && "text-emerald-600 dark:text-emerald-400",
-                v != null && v < 0 && "text-red-600 dark:text-red-400",
-              )}
+              className={cn("text-right font-mono tabular-nums", localRiskMoveClass(v))}
+              title="Color is local-currency risk: positive USD/GHS means GHS weakness and is shown adverse."
             >
               {formatSignedPercent(v)}
             </div>
@@ -182,6 +192,21 @@ export function PairsTable({ snapshots }: { snapshots: RegimeSnapshot[] }) {
         accessorKey: "vol30",
         header: ({ column }) => <SortHeader label="Vol 30d" sorted={column.getIsSorted()} onClick={column.getToggleSortingHandler()!} />,
         cell: ({ row }) => <div className="text-right font-mono tabular-nums">{formatVol(row.original.vol30)}</div>,
+      },
+      {
+        accessorKey: "vol60",
+        header: ({ column }) => <SortHeader label="Vol 60d" sorted={column.getIsSorted()} onClick={column.getToggleSortingHandler()!} />,
+        cell: ({ row }) => <div className="text-right font-mono tabular-nums">{formatVol(row.original.vol60)}</div>,
+      },
+      {
+        accessorKey: "vol90",
+        header: ({ column }) => <SortHeader label="Vol 90d" sorted={column.getIsSorted()} onClick={column.getToggleSortingHandler()!} />,
+        cell: ({ row }) => <div className="text-right font-mono tabular-nums">{formatVol(row.original.vol90)}</div>,
+      },
+      {
+        accessorKey: "vol180",
+        header: ({ column }) => <SortHeader label="Vol 180d" sorted={column.getIsSorted()} onClick={column.getToggleSortingHandler()!} />,
+        cell: ({ row }) => <div className="text-right font-mono tabular-nums">{formatVol(row.original.vol180)}</div>,
       },
       {
         accessorKey: "vol252",
@@ -218,12 +243,12 @@ export function PairsTable({ snapshots }: { snapshots: RegimeSnapshot[] }) {
   });
 
   return (
-    <Card>
-      <CardHeader className="gap-3">
+    <Card className="overflow-hidden border-foreground/10 bg-card/95">
+      <CardHeader className="gap-3 border-b bg-muted/20">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle>
-            All Pairs
-            <span className="ml-2 text-sm font-normal text-muted-foreground">{rows.length} shown</span>
+          <CardTitle className="font-mono text-sm uppercase tracking-wide">
+            Noeud Regime Terminal
+            <span className="ml-2 font-sans text-sm font-normal normal-case text-muted-foreground">{rows.length} shown</span>
           </CardTitle>
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative">
@@ -262,12 +287,13 @@ export function PairsTable({ snapshots }: { snapshots: RegimeSnapshot[] }) {
         </div>
       </CardHeader>
       <CardContent className="px-0">
-        <Table>
+        <div className="overflow-x-auto">
+        <Table className="min-w-[1120px]">
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id} className="hover:bg-transparent">
                 {hg.headers.map((header) => (
-                  <TableHead key={header.id} className="px-4">
+                  <TableHead key={header.id} className="h-9 px-3 font-mono text-[11px] uppercase tracking-wide">
                     {header.isPlaceholder
                       ? null
                       : flexRender(header.column.columnDef.header, header.getContext())}
@@ -291,7 +317,7 @@ export function PairsTable({ snapshots }: { snapshots: RegimeSnapshot[] }) {
                   onClick={() => router.push(`/pairs/${row.original.pair}`)}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="px-4 py-2.5">
+                    <TableCell key={cell.id} className="px-3 py-2 font-mono text-xs">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
@@ -300,6 +326,7 @@ export function PairsTable({ snapshots }: { snapshots: RegimeSnapshot[] }) {
             )}
           </TableBody>
         </Table>
+        </div>
         <TablePagination table={table} />
       </CardContent>
     </Card>

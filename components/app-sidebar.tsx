@@ -10,6 +10,7 @@ import {
   LayoutDashboardIcon,
   LifeBuoyIcon,
   LogOutIcon,
+  BarChart3Icon,
   SparklesIcon,
 } from "lucide-react";
 
@@ -28,6 +29,7 @@ const NAV_MAIN = [
   { title: "Overview", url: "/", icon: LayoutDashboardIcon },
   { title: "Pair Review", url: "/pairs", icon: GaugeIcon },
   { title: "Validation Runs", url: "/validation", icon: SparklesIcon },
+  { title: "Performance Lab", url: "/performance", icon: BarChart3Icon },
   { title: "Data Health", url: "/data-health", icon: DatabaseIcon },
 ];
 

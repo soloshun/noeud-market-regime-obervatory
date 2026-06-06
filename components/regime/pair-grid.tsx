@@ -44,9 +44,10 @@ function PairTile({ snapshot }: { snapshot: RegimeSnapshot }) {
             <div
               className={cn(
                 "font-mono text-xs tabular-nums",
-                dc != null && dc > 0 && "text-emerald-600 dark:text-emerald-400",
-                dc != null && dc < 0 && "text-red-600 dark:text-red-400",
+                dc != null && dc > 0 && "text-red-600 dark:text-red-400",
+                dc != null && dc < 0 && "text-emerald-600 dark:text-emerald-400",
               )}
+              title="Color is local-currency risk: positive pair move means quote-currency weakness."
             >
               {formatSignedPercent(dc)}
             </div>

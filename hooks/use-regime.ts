@@ -9,6 +9,7 @@ import type {
   RegimeHistoryPoint,
   RegimeOverviewResponse,
   RegimeSnapshot,
+  BenchmarkResult,
   ValidationRun,
 } from "@/lib/types";
 
@@ -119,6 +120,18 @@ export function useProviderRuns(pair?: string) {
         params: pair ? { pair } : undefined,
       });
       return data.runs;
+    },
+  });
+}
+
+export function useBenchmarkResults() {
+  return useQuery({
+    queryKey: ["benchmark-results"],
+    queryFn: async () => {
+      const { data } = await api.get<{ as_of_date: string | null; results: BenchmarkResult[] }>(
+        "/benchmarks",
+      );
+      return data.results;
     },
   });
 }

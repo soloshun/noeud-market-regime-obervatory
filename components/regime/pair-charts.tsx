@@ -15,7 +15,13 @@ import {
 } from "recharts";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import { formatMultiplier, formatNumber, formatRate, formatVol } from "@/lib/format";
 import { MULTIPLIER_BUCKETS, REGIME_TONES, TENOR_BUCKETS } from "@/lib/regime";
 import {
@@ -42,6 +48,34 @@ const VOL_WINDOWS: { key: keyof RegimeSnapshot["current_volatility_readings"]; l
 
 function shortDate(value: string) {
   return new Date(value).toLocaleDateString("en-GB", { month: "short", day: "numeric" });
+}
+
+function tooltipColor(item: unknown) {
+  if (item && typeof item === "object" && "color" in item && typeof item.color === "string") {
+    return item.color;
+  }
+  return "var(--muted-foreground)";
+}
+
+function legendTooltipFormatter(
+  labels: Record<string, string>,
+  formatter: (value: number, key: string) => string,
+) {
+  return function LegendTooltipFormatter(value: unknown, name: unknown, item: unknown) {
+    const key = String(name);
+    return (
+      <span className="flex w-full min-w-40 items-center gap-2">
+        <span
+          className="size-2.5 shrink-0 rounded-[2px]"
+          style={{ backgroundColor: tooltipColor(item) }}
+        />
+        <span className="text-muted-foreground">{labels[key] ?? key}</span>
+        <span className="ml-auto font-mono font-medium text-foreground">
+          {formatter(Number(value), key)}
+        </span>
+      </span>
+    );
+  };
 }
 
 export function SpotHistoryChart({
@@ -168,7 +202,18 @@ export function VolatilityHistoryChart({ history }: { history: RegimeHistoryPoin
             <CartesianGrid vertical={false} />
             <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={40} fontSize={11} tickFormatter={shortDate} />
             <YAxis tickLine={false} axisLine={false} width={44} fontSize={11} tickFormatter={(v) => formatVol(Number(v), 0)} />
-            <ChartTooltip content={<ChartTooltipContent labelFormatter={(v) => shortDate(String(v))} formatter={(val) => formatVol(Number(val))} />} />
+            <ChartLegend content={<ChartLegendContent />} />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  labelFormatter={(v) => shortDate(String(v))}
+                  formatter={legendTooltipFormatter(
+                    { vol30: "30d", vol90: "90d", vol252: "252d" },
+                    (value) => formatVol(value),
+                  )}
+                />
+              }
+            />
             <Line dataKey="vol30" type="monotone" stroke="var(--color-vol30)" strokeWidth={2} dot={dot} />
             <Line dataKey="vol90" type="monotone" stroke="var(--color-vol90)" strokeWidth={2} dot={dot} />
             <Line dataKey="vol252" type="monotone" stroke="var(--color-vol252)" strokeWidth={2} dot={dot} />
@@ -206,14 +251,19 @@ export function TailRiskHistoryChart({ history }: { history: RegimeHistoryPoint[
             <YAxis yAxisId="var" tickLine={false} axisLine={false} width={44} fontSize={11} tickFormatter={(v) => formatVol(Number(v), 0)} />
             <YAxis yAxisId="ratio" orientation="right" tickLine={false} axisLine={false} width={36} fontSize={11} tickFormatter={(v) => `${formatNumber(Number(v), 1)}x`} />
             <ReferenceLine yAxisId="ratio" y={1} stroke="var(--muted-foreground)" strokeDasharray="3 3" strokeOpacity={0.45} />
+            <ChartLegend content={<ChartLegendContent />} />
             <ChartTooltip
               content={
                 <ChartTooltipContent
                   labelFormatter={(v) => shortDate(String(v))}
-                  formatter={(val, name) =>
-                    name === "fatTail"
-                      ? `${formatNumber(Number(val), 2)}x`
-                      : formatVol(Number(val), 2)
+                  formatter={(val, name, item) =>
+                    legendTooltipFormatter(
+                      { var30: "Hist VaR 99% 30d", fatTail: "Fat-tail ratio" },
+                      (value, key) =>
+                        key === "fatTail"
+                          ? `${formatNumber(value, 2)}x`
+                          : formatVol(value, 2),
+                    )(val, name, item)
                   }
                 />
               }
@@ -374,10 +424,14 @@ export function TrendAwareMultiplierOverlayChart({
             />
             <ReferenceLine y={MULTIPLIER_FLOOR} stroke="var(--muted-foreground)" strokeDasharray="3 3" strokeOpacity={0.4} />
             <ReferenceLine y={MULTIPLIER_CEILING} stroke="var(--muted-foreground)" strokeDasharray="3 3" strokeOpacity={0.4} />
+            <ChartLegend content={<ChartLegendContent />} />
             <ChartTooltip
               content={
                 <ChartTooltipContent
-                  formatter={(value) => formatMultiplier(Number(value))}
+                  formatter={legendTooltipFormatter(
+                    { deterministic: "Quant", recommended: "LLM" },
+                    (value) => formatMultiplier(value),
+                  )}
                 />
               }
             />

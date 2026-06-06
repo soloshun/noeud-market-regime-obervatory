@@ -33,6 +33,7 @@ export function PairHeaderCard({ snapshot }: { snapshot: RegimeSnapshot }) {
   const v = snapshot.current_volatility_readings;
   const spot = snapshot.live_spot_rates;
   const up = (spot.day_change ?? 0) >= 0;
+  const localRiskMove = spot.day_change_pct;
   const tone = regimeTone(v.regime);
 
   return (
@@ -62,8 +63,10 @@ export function PairHeaderCard({ snapshot }: { snapshot: RegimeSnapshot }) {
           <span
             className={cn(
               "flex items-center gap-0.5 font-mono text-sm tabular-nums",
-              up ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400",
+              localRiskMove != null && localRiskMove > 0 && "text-red-600 dark:text-red-400",
+              localRiskMove != null && localRiskMove < 0 && "text-emerald-600 dark:text-emerald-400",
             )}
+            title="Color is local-currency risk: positive USD/GHS means GHS weakness and is shown adverse."
           >
             {up ? <ArrowUpRightIcon className="size-3.5" /> : <ArrowDownRightIcon className="size-3.5" />}
             {formatSignedPercent(spot.day_change_pct)}

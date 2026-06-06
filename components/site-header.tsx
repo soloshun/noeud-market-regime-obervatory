@@ -13,6 +13,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 const TITLES: Record<string, string> = {
   pairs: "Pair Review",
   validation: "Validation Runs",
+  performance: "Performance Lab",
   "data-health": "Data Health",
   help: "Help & Methodology",
 };

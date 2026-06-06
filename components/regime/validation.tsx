@@ -22,9 +22,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDate, formatDateTime, formatNumber, titleCase } from "@/lib/format";
+import { formatDate, formatDateTime, formatMultiplier, formatNumber, titleCase } from "@/lib/format";
 import {
   MARKET_SENTIMENT_LABELS,
+  MULTIPLIER_BUCKETS,
   TREND_ADJUSTMENT_LABELS,
   VALIDATION_RUN_SOURCE_LABELS,
 } from "@/lib/regime";
@@ -47,13 +48,19 @@ export function TrendAwareAdjustmentCard({ run }: { run: ValidationRun }) {
   const delta = r.recommended_primary_trend_multiplier - r.deterministic_primary_trend_multiplier;
   const positive = delta > 0;
   const neutral = Math.abs(delta) < 0.0001;
+  const ladder = MULTIPLIER_BUCKETS.map((bucket) => {
+    const deterministic = r.deterministic_trend_aware_multipliers[bucket.key];
+    const recommended = r.llm_recommended_trend_aware_multipliers[bucket.key];
+    const pct = deterministic === 0 ? 0 : recommended / deterministic - 1;
+    return { ...bucket, deterministic, recommended, pct };
+  });
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">Trend-Aware Multiplier Review</CardTitle>
+        <CardTitle className="text-sm">Trend-Aware Multiplier Ladder</CardTitle>
         <CardDescription>
-          LLM sentiment overlay for {titleCase(r.primary_trend_aware_tenor.replace("tenor_", ""))}
+          Quant engine versus LLM sentiment overlay across the full tenor strip
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -97,6 +104,56 @@ export function TrendAwareAdjustmentCard({ run }: { run: ValidationRun }) {
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             {r.trend_adjustment_rationale}
           </p>
+        </div>
+        <div className="overflow-x-auto rounded-lg border">
+          <Table className="min-w-[620px]">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="px-3 font-mono text-[11px] uppercase tracking-wide">Tenor</TableHead>
+                <TableHead className="px-3 text-right font-mono text-[11px] uppercase tracking-wide">Quant</TableHead>
+                <TableHead className="px-3 text-right font-mono text-[11px] uppercase tracking-wide">LLM</TableHead>
+                <TableHead className="px-3 text-right font-mono text-[11px] uppercase tracking-wide">Overlay</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {ladder.map((row) => {
+                const rowPositive = row.pct > 0;
+                const rowNeutral = Math.abs(row.pct) < 0.0001;
+                return (
+                  <TableRow
+                    key={row.key}
+                    className={cn(row.key === r.primary_trend_aware_tenor && "bg-muted/35")}
+                  >
+                    <TableCell className="px-3 py-2 font-mono text-xs">
+                      {row.label}
+                      {row.key === r.primary_trend_aware_tenor && (
+                        <span className="ml-2 rounded border bg-background px-1.5 py-0.5 font-sans text-[10px] text-muted-foreground">
+                          primary
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="px-3 py-2 text-right font-mono text-xs tabular-nums">
+                      {formatMultiplier(row.deterministic)}
+                    </TableCell>
+                    <TableCell className="px-3 py-2 text-right font-mono text-xs tabular-nums">
+                      {formatMultiplier(row.recommended)}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        "px-3 py-2 text-right font-mono text-xs tabular-nums",
+                        rowPositive && "text-red-600 dark:text-red-400",
+                        !rowPositive && !rowNeutral && "text-emerald-600 dark:text-emerald-400",
+                        rowNeutral && "text-muted-foreground",
+                      )}
+                    >
+                      {rowPositive ? "+" : ""}
+                      {formatNumber(row.pct * 100, 1)}%
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
         {r.trend_driver_evidence.length > 0 && (
           <PointList title="Trend drivers" points={r.trend_driver_evidence} tone="bg-sky-500" />
@@ -192,6 +249,56 @@ function ScorerRow({ result }: { result: ValidationResult }) {
   );
 }
 
+function ValidationOutputLedger({ run }: { run: ValidationRun }) {
+  const r = run.result;
+  const rows = [
+    ["Run source", VALIDATION_RUN_SOURCE_LABELS[run.run_source]],
+    ["Status", titleCase(r.status)],
+    ["Confidence", `${formatNumber(r.confidence * 100, 0)}%`],
+    ["Deterministic regime", r.deterministic_regime],
+    ["External context read", r.external_context_regime_read],
+    ["Market sentiment", MARKET_SENTIMENT_LABELS[r.market_sentiment]],
+    ["Trend adjustment", TREND_ADJUSTMENT_LABELS[r.trend_adjustment_direction]],
+    ["Adjustment confidence", `${formatNumber(r.trend_adjustment_confidence * 100, 0)}%`],
+    ["Recommended action", titleCase(r.recommended_action)],
+    ["Scorer model", r.scorer_model],
+    ["Prompt version", r.prompt_version],
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">LLM Output Ledger</CardTitle>
+        <CardDescription>Every first-class validation field captured from the JSON result</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-2 md:grid-cols-2 xl:grid-cols-3">
+          {rows.map(([label, value]) => (
+            <div key={label} className="border-l pl-3">
+              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+              <div className="mt-0.5 break-words font-mono text-xs font-medium">{value}</div>
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Validation summary</div>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{r.validation_summary}</p>
+          </div>
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Trend-aware summary</div>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{r.trend_aware_validation_summary}</p>
+          </div>
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Adjustment rationale</div>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{r.trend_adjustment_rationale}</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function ValidationDetail({ run }: { run: ValidationRun }) {
   const r = run.result;
   const brief = r.research_brief;
@@ -200,6 +307,7 @@ export function ValidationDetail({ run }: { run: ValidationRun }) {
     <div className="space-y-4">
       <ValidationSummaryCard run={run} />
       <TrendAwareAdjustmentCard run={run} />
+      <ValidationOutputLedger run={run} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
@@ -328,7 +436,7 @@ export function ValidationDetail({ run }: { run: ValidationRun }) {
           <CardDescription>Full audit trace for every model call</CardDescription>
         </CardHeader>
         <CardContent>
-          <Accordion type="single" collapsible className="w-full">
+          <Accordion type="multiple" className="w-full">
             {run.raw_model_responses.map((call, i) => (
               <AccordionItem key={i} value={`call-${i}`}>
                 <AccordionTrigger>
