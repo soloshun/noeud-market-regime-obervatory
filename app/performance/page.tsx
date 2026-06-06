@@ -10,7 +10,7 @@ export default function PerformancePage() {
 
   return (
     <>
-      <SectionTitle description="Matured outcome scoring for quant-only multipliers versus LLM-adjusted recommendations. Rows only appear after the future tenor window has enough observed market data.">
+      <SectionTitle description="Matured outcome scoring for quant-only multipliers versus LLM-adjusted recommendations. The scheduled evaluator publishes rows as tenor windows mature.">
         Performance Lab
       </SectionTitle>
       {query.isLoading ? (

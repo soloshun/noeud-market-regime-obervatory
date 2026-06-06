@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { CalendarClockIcon } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -61,7 +62,32 @@ function tenorRows(results: BenchmarkResult[]) {
   }).filter((row) => row.count > 0);
 }
 
+function nextBenchmarkRun(now = new Date()) {
+  const next = new Date(now);
+  next.setUTCHours(9, 0, 0, 0);
+  const daysUntilSaturday = (6 - now.getUTCDay() + 7) % 7;
+  next.setUTCDate(now.getUTCDate() + daysUntilSaturday);
+  if (next <= now) {
+    next.setUTCDate(next.getUTCDate() + 7);
+  }
+  return next;
+}
+
+function formatRunDate(value: Date) {
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Africa/Accra",
+    timeZoneName: "short",
+  }).format(value);
+}
+
 export function PerformanceLab({ results }: { results: BenchmarkResult[] }) {
+  const nextRun = React.useMemo(() => nextBenchmarkRun(), []);
   const sorted = React.useMemo(
     () => [...results].sort((a, b) => b.maturity_date.localeCompare(a.maturity_date)),
     [results],
@@ -79,6 +105,28 @@ export function PerformanceLab({ results }: { results: BenchmarkResult[] }) {
 
   return (
     <div className="space-y-4">
+      <Card className="border-foreground/10 bg-card/95">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle className="text-base">Benchmark Evaluation Schedule</CardTitle>
+            <CardDescription>
+              Prefect checks matured validation windows weekly and writes scored rows into the Performance Lab feed.
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2 rounded-md border bg-muted/20 px-3 py-2">
+            <CalendarClockIcon className="size-4 text-muted-foreground" />
+            <div>
+              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                Next evaluation
+              </div>
+              <div className="font-mono text-sm font-medium tabular-nums">
+                {formatRunDate(nextRun)}
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Metric label="Matured Scores" value={`${results.length}`} hint="Validation-run tenor windows scored" />
         <Metric label="Quant Error" value={formatVol(quantError, 2)} hint="Mean absolute vol error" />
@@ -101,8 +149,7 @@ export function PerformanceLab({ results }: { results: BenchmarkResult[] }) {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Run the evaluator after at least 14 calendar days of observations have matured:
-              <span className="ml-1 font-mono text-foreground">uv run python scripts/evaluate_benchmarks.py</span>
+              No tenor window has matured yet. The scheduled benchmark flow will keep checking stored validation runs and will publish the first scored rows automatically once enough future prices exist.
             </p>
           </CardContent>
         </Card>
