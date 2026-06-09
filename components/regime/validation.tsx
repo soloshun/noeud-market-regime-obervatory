@@ -850,6 +850,7 @@ export function PairValidations({
                   value={dateKeyToDate(selectedDate)}
                   min={dateKeyToDate(earliestSelectableDate)}
                   max={dateKeyToDate(lastDate ?? "")}
+                  disableWeekends
                   onChange={selectDate}
                   placeholder="e.g. last Friday"
                 />

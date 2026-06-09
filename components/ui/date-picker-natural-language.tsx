@@ -28,11 +28,17 @@ function startOfLocalDay(value: Date) {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate());
 }
 
+function isWeekend(value: Date) {
+  const day = value.getDay();
+  return day === 0 || day === 6;
+}
+
 export function DatePickerNaturalLanguage({
   value,
   onChange,
   min,
   max,
+  disableWeekends = false,
   placeholder = "Try “last Friday”",
   className,
 }: {
@@ -40,6 +46,7 @@ export function DatePickerNaturalLanguage({
   onChange: (date: Date | undefined) => void;
   min?: Date;
   max?: Date;
+  disableWeekends?: boolean;
   placeholder?: string;
   className?: string;
 }) {
@@ -53,6 +60,7 @@ export function DatePickerNaturalLanguage({
     const parsedDay = startOfLocalDay(parsed);
     if (min && parsedDay < startOfLocalDay(min)) return;
     if (max && parsedDay > startOfLocalDay(max)) return;
+    if (disableWeekends && isWeekend(parsedDay)) return;
     onChange(parsed);
     setText("");
   };
@@ -80,6 +88,7 @@ export function DatePickerNaturalLanguage({
               disabled={[
                 ...(min ? [{ before: min }] : []),
                 ...(max ? [{ after: max }] : []),
+                ...(disableWeekends ? [{ dayOfWeek: [0, 6] }] : []),
               ]}
               onSelect={(date) => {
                 onChange(date);
