@@ -13,6 +13,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
   Select,
@@ -258,6 +259,10 @@ function ScorerRow({ result }: { result: ValidationResult }) {
 
 function validationRunLabel(run: ValidationRun) {
   return `${formatDateTime(run.created_at)} · ${VALIDATION_RUN_SOURCE_LABELS[run.run_source]}`;
+}
+
+function validationRunDate(run: ValidationRun) {
+  return new Date(run.created_at).toISOString().slice(0, 10);
 }
 
 function ValidationOutputLedger({ run }: { run: ValidationRun }) {
@@ -511,8 +516,14 @@ export function PairValidations({
     () => [...runs].sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? "")),
     [runs],
   );
+  const initialSelected = initialRunId
+    ? ordered.find((run) => run.id === initialRunId)
+    : ordered[0];
   const [selectedId, setSelectedId] = React.useState<string | undefined>(
-    initialRunId ?? ordered[0]?.id,
+    initialSelected?.id,
+  );
+  const [selectedDate, setSelectedDate] = React.useState(
+    initialSelected ? validationRunDate(initialSelected) : "",
   );
 
   if (ordered.length === 0) {
@@ -525,6 +536,29 @@ export function PairValidations({
   }
 
   const selected = ordered.find((r) => r.id === selectedId) ?? ordered[0];
+  const selectedDateRuns = selectedDate
+    ? ordered.filter((run) => validationRunDate(run) === selectedDate)
+    : [];
+  const dropdownRuns = Array.from(
+    new Map(
+      [...ordered.slice(0, 10), ...selectedDateRuns, selected].map((run) => [run.id, run]),
+    ).values(),
+  ).sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+  const firstDate = ordered[ordered.length - 1] ? validationRunDate(ordered[ordered.length - 1]) : undefined;
+  const lastDate = ordered[0] ? validationRunDate(ordered[0]) : undefined;
+  const selectedDateHasRuns = selectedDateRuns.length > 0;
+
+  const selectRun = (runId: string) => {
+    const run = ordered.find((item) => item.id === runId);
+    setSelectedId(runId);
+    if (run) setSelectedDate(validationRunDate(run));
+  };
+
+  const selectDate = (date: string) => {
+    setSelectedDate(date);
+    const run = ordered.find((item) => validationRunDate(item) === date);
+    if (run) setSelectedId(run.id);
+  };
 
   return (
     <div className="space-y-4">
@@ -545,22 +579,45 @@ export function PairValidations({
                 <ValidationStatusBadge status={selected.status} />
               </div>
             </div>
-            <div className="flex w-full flex-col gap-1.5 lg:w-[360px]">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Review run
-              </span>
-              <Select value={selected.id} onValueChange={setSelectedId}>
-                <SelectTrigger className="h-10 w-full">
-                  <SelectValue placeholder="Select validation run" />
-                </SelectTrigger>
-                <SelectContent align="end" className="max-h-80">
-                  {ordered.map((run) => (
-                    <SelectItem key={run.id} value={run.id}>
-                      {validationRunLabel(run)} · {titleCase(run.status)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid w-full gap-3 md:grid-cols-[minmax(0,1fr)_160px] lg:w-[560px]">
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Review run
+                </span>
+                <Select value={selected.id} onValueChange={selectRun}>
+                  <SelectTrigger className="h-10 w-full">
+                    <SelectValue placeholder="Select validation run" />
+                  </SelectTrigger>
+                  <SelectContent align="end" className="max-h-80">
+                    {dropdownRuns.map((run) => (
+                      <SelectItem key={run.id} value={run.id}>
+                        {validationRunLabel(run)} · {titleCase(run.status)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-[11px] text-muted-foreground">
+                  Showing latest 10 plus selected-date runs
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Jump to date
+                </span>
+                <Input
+                  type="date"
+                  value={selectedDate}
+                  min={firstDate}
+                  max={lastDate}
+                  onChange={(event) => selectDate(event.target.value)}
+                  className="h-10 font-mono text-xs"
+                />
+                <span className="text-[11px] text-muted-foreground">
+                  {selectedDateHasRuns
+                    ? `${selectedDateRuns.length} run${selectedDateRuns.length === 1 ? "" : "s"} on date`
+                    : "No run on selected date"}
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>
