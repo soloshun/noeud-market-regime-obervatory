@@ -57,6 +57,26 @@ export function useRegimeHistory(pair: string) {
   });
 }
 
+export function useRegimeHistories(pairs: string[]) {
+  const key = pairs.join(",");
+  return useQuery({
+    queryKey: ["regime-histories", key],
+    queryFn: async () => {
+      const entries = await Promise.all(
+        pairs.map(async (pair) => {
+          const { data } = await api.get<{
+            pair: string;
+            points: RegimeHistoryPoint[];
+          }>(`/regimes/${pair}/history`);
+          return [pair, data.points] as const;
+        }),
+      );
+      return Object.fromEntries(entries) as Record<string, RegimeHistoryPoint[]>;
+    },
+    enabled: pairs.length > 0,
+  });
+}
+
 export function usePriceObservations(pair: string) {
   return useQuery({
     queryKey: ["price-observations", pair],

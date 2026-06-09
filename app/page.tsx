@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/regime/primitives";
 import {
   AccelerationLeaderboard,
   RegimeDistributionChart,
+  TrendAwareOverviewHistoryChart,
 } from "@/components/regime/overview-charts";
 import {
   OperationsMetricStrip,
@@ -12,12 +13,21 @@ import {
 } from "@/components/regime/operations-overview";
 import { PairsTable } from "@/components/regime/pairs-table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useProviderRuns, useRegimeOverview, useValidations } from "@/hooks/use-regime";
+import {
+  useProviderRuns,
+  useRegimeHistories,
+  useRegimeOverview,
+  useValidationRuns,
+  useValidations,
+} from "@/hooks/use-regime";
 
 export default function OverviewPage() {
   const query = useRegimeOverview();
   const validationsQuery = useValidations();
+  const validationRunsQuery = useValidationRuns();
   const providerRunsQuery = useProviderRuns();
+  const pairs = query.data?.snapshots.map((snapshot) => snapshot.pair) ?? [];
+  const historiesQuery = useRegimeHistories(pairs);
 
   if (query.isLoading) return <LoadingSkeleton />;
   if (query.isError)
@@ -35,6 +45,10 @@ export default function OverviewPage() {
         validations={validationsQuery.data ?? []}
         providerRuns={providerRunsQuery.data ?? []}
         asOf={query.data!.as_of_date}
+      />
+      <TrendAwareOverviewHistoryChart
+        histories={historiesQuery.data ?? {}}
+        validations={validationRunsQuery.data ?? []}
       />
       <TrendOverlayMatrix
         snapshots={query.data!.snapshots}

@@ -179,7 +179,9 @@ export function VolatilityHistoryChart({ history }: { history: RegimeHistoryPoin
   const data = history.map((p) => ({
     date: p.as_of_date,
     vol30: p.vol_30d,
+    vol60: p.vol_60d,
     vol90: p.vol_90d,
+    vol180: p.vol_180d,
     vol252: p.vol_252d,
   }));
   const dot = data.length < 2 ? { r: 3 } : false;
@@ -193,7 +195,9 @@ export function VolatilityHistoryChart({ history }: { history: RegimeHistoryPoin
         <ChartContainer
           config={{
             vol30: { label: "30d", color: "var(--chart-1)" },
-            vol90: { label: "90d", color: "var(--chart-2)" },
+            vol60: { label: "60d", color: "var(--chart-2)" },
+            vol90: { label: "90d", color: "var(--chart-3)" },
+            vol180: { label: "180d", color: "var(--chart-4)" },
             vol252: { label: "252d", color: "var(--chart-5)" },
           }}
           className="aspect-auto h-[260px] w-full"
@@ -208,14 +212,22 @@ export function VolatilityHistoryChart({ history }: { history: RegimeHistoryPoin
                 <ChartTooltipContent
                   labelFormatter={(v) => shortDate(String(v))}
                   formatter={legendTooltipFormatter(
-                    { vol30: "30d", vol90: "90d", vol252: "252d" },
+                    {
+                      vol30: "30d",
+                      vol60: "60d",
+                      vol90: "90d",
+                      vol180: "180d",
+                      vol252: "252d",
+                    },
                     (value) => formatVol(value),
                   )}
                 />
               }
             />
             <Line dataKey="vol30" type="monotone" stroke="var(--color-vol30)" strokeWidth={2} dot={dot} />
+            <Line dataKey="vol60" type="monotone" stroke="var(--color-vol60)" strokeWidth={2} dot={dot} />
             <Line dataKey="vol90" type="monotone" stroke="var(--color-vol90)" strokeWidth={2} dot={dot} />
+            <Line dataKey="vol180" type="monotone" stroke="var(--color-vol180)" strokeWidth={2} dot={dot} />
             <Line dataKey="vol252" type="monotone" stroke="var(--color-vol252)" strokeWidth={2} dot={dot} />
           </LineChart>
         </ChartContainer>
@@ -270,6 +282,159 @@ export function TailRiskHistoryChart({ history }: { history: RegimeHistoryPoint[
             />
             <Line yAxisId="var" dataKey="var30" type="monotone" stroke="var(--color-var30)" strokeWidth={2} dot={dot} />
             <Line yAxisId="ratio" dataKey="fatTail" type="monotone" stroke="var(--color-fatTail)" strokeWidth={2} dot={dot} />
+          </LineChart>
+        </ChartContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+function latestValidationByDate(validations: ValidationRun[]) {
+  const byDate = new Map<string, ValidationRun>();
+  for (const run of validations) {
+    const existing = byDate.get(run.as_of_date);
+    if (!existing || run.created_at > existing.created_at) {
+      byDate.set(run.as_of_date, run);
+    }
+  }
+  return byDate;
+}
+
+export function TrendAwareMultiplierHistoryChart({
+  history,
+  validations,
+  pair,
+}: {
+  history: RegimeHistoryPoint[];
+  validations: ValidationRun[];
+  pair: string;
+}) {
+  const validationByDate = latestValidationByDate(validations);
+  const data = history.map((point) => {
+    const quant = point.dynamic_trend_aware_regime_multiplier;
+    const llm = validationByDate.get(point.as_of_date)?.result
+      .llm_recommended_trend_aware_multipliers;
+    return {
+      date: point.as_of_date,
+      quant30: quant.tenor_le_30d,
+      llm30: llm?.tenor_le_30d ?? null,
+      quant90: quant.tenor_le_90d,
+      llm90: llm?.tenor_le_90d ?? null,
+      quant180: quant.tenor_le_180d,
+      llm180: llm?.tenor_le_180d ?? null,
+    };
+  });
+  const dot = data.length < 2 ? { r: 3 } : false;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Rolling Trend-Aware Multipliers</CardTitle>
+        <CardDescription>
+          {pair} deterministic path with LLM recommendation points when validations exist
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer
+          config={{
+            quant30: { label: "Quant 30d", color: "var(--chart-3)" },
+            llm30: { label: "LLM 30d", color: "var(--chart-1)" },
+            quant90: { label: "Quant 90d", color: "var(--chart-4)" },
+            llm90: { label: "LLM 90d", color: "var(--chart-2)" },
+            quant180: { label: "Quant 180d", color: "var(--chart-5)" },
+            llm180: { label: "LLM 180d", color: "var(--chart-1)" },
+          }}
+          className="aspect-auto h-[300px] w-full"
+        >
+          <LineChart data={data} margin={{ top: 8, right: 16, left: 4, bottom: 0 }}>
+            <CartesianGrid vertical={false} />
+            <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={40} fontSize={11} tickFormatter={shortDate} />
+            <YAxis tickLine={false} axisLine={false} width={42} domain={[MULTIPLIER_FLOOR, MULTIPLIER_CEILING]} fontSize={11} tickFormatter={(v) => `${formatNumber(Number(v), 1)}x`} />
+            <ReferenceLine y={MULTIPLIER_FLOOR} stroke="var(--muted-foreground)" strokeDasharray="3 3" strokeOpacity={0.4} />
+            <ReferenceLine y={MULTIPLIER_CEILING} stroke="var(--muted-foreground)" strokeDasharray="3 3" strokeOpacity={0.4} />
+            <ChartLegend content={<ChartLegendContent />} />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  labelFormatter={(v) => shortDate(String(v))}
+                  formatter={legendTooltipFormatter(
+                    {
+                      quant30: "Quant 30d",
+                      llm30: "LLM 30d",
+                      quant90: "Quant 90d",
+                      llm90: "LLM 90d",
+                      quant180: "Quant 180d",
+                      llm180: "LLM 180d",
+                    },
+                    (value) => formatMultiplier(value),
+                  )}
+                />
+              }
+            />
+            <Line dataKey="quant30" type="monotone" stroke="var(--color-quant30)" strokeWidth={2.25} dot={dot} />
+            <Line dataKey="llm30" type="monotone" stroke="var(--color-llm30)" strokeWidth={2.25} strokeDasharray="5 4" connectNulls dot={{ r: 4, fill: "var(--color-llm30)" }} />
+            <Line dataKey="quant90" type="monotone" stroke="var(--color-quant90)" strokeWidth={1.7} strokeOpacity={0.75} dot={dot} />
+            <Line dataKey="llm90" type="monotone" stroke="var(--color-llm90)" strokeWidth={1.7} strokeDasharray="5 4" connectNulls dot={{ r: 3, fill: "var(--color-llm90)" }} />
+            <Line dataKey="quant180" type="monotone" stroke="var(--color-quant180)" strokeWidth={1.5} strokeOpacity={0.65} dot={dot} />
+            <Line dataKey="llm180" type="monotone" stroke="var(--color-llm180)" strokeWidth={1.5} strokeDasharray="5 4" connectNulls dot={{ r: 3, fill: "var(--color-llm180)" }} />
+          </LineChart>
+        </ChartContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function TermStructureHistoryChart({ history }: { history: RegimeHistoryPoint[] }) {
+  const data = history.map((point) => ({
+    date: point.as_of_date,
+    tenor30: point.volatility_term_structure.tenor_le_30d,
+    tenor90: point.volatility_term_structure.tenor_le_90d,
+    tenor180: point.volatility_term_structure.tenor_le_180d,
+    tenorLong: point.volatility_term_structure.tenor_gt_180d,
+  }));
+  const dot = data.length < 2 ? { r: 3 } : false;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Rolling Volatility Term Structure</CardTitle>
+        <CardDescription>Tenor-matched annualized volatility path across hedge horizons</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer
+          config={{
+            tenor30: { label: "≤30d", color: "var(--chart-1)" },
+            tenor90: { label: "≤90d", color: "var(--chart-2)" },
+            tenor180: { label: "≤180d", color: "var(--chart-4)" },
+            tenorLong: { label: ">180d", color: "var(--chart-5)" },
+          }}
+          className="aspect-auto h-[260px] w-full"
+        >
+          <LineChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
+            <CartesianGrid vertical={false} />
+            <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={40} fontSize={11} tickFormatter={shortDate} />
+            <YAxis tickLine={false} axisLine={false} width={44} fontSize={11} tickFormatter={(v) => formatVol(Number(v), 0)} />
+            <ChartLegend content={<ChartLegendContent />} />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  labelFormatter={(v) => shortDate(String(v))}
+                  formatter={legendTooltipFormatter(
+                    {
+                      tenor30: "≤30d",
+                      tenor90: "≤90d",
+                      tenor180: "≤180d",
+                      tenorLong: ">180d",
+                    },
+                    (value) => formatVol(value),
+                  )}
+                />
+              }
+            />
+            <Line dataKey="tenor30" type="monotone" stroke="var(--color-tenor30)" strokeWidth={2} dot={dot} />
+            <Line dataKey="tenor90" type="monotone" stroke="var(--color-tenor90)" strokeWidth={2} dot={dot} />
+            <Line dataKey="tenor180" type="monotone" stroke="var(--color-tenor180)" strokeWidth={2} dot={dot} />
+            <Line dataKey="tenorLong" type="monotone" stroke="var(--color-tenorLong)" strokeWidth={2} dot={dot} />
           </LineChart>
         </ChartContainer>
       </CardContent>

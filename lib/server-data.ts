@@ -256,6 +256,7 @@ function snapshotFromRow(row: SnapshotRow): RegimeSnapshot {
 }
 
 function historyFromRow(row: SnapshotRow): RegimeHistoryPoint {
+  const payload = row.snapshot_payload;
   return {
     as_of_date: row.as_of_date,
     spot_rate: row.spot_rate,
@@ -265,12 +266,17 @@ function historyFromRow(row: SnapshotRow): RegimeHistoryPoint {
     acceleration_vs_252d: row.acceleration_vs_252d,
     vol_7d: row.vol_7d,
     vol_30d: row.vol_30d,
+    vol_60d: row.vol_60d,
     vol_90d: row.vol_90d,
+    vol_180d: row.vol_180d,
     vol_252d: row.vol_252d,
     trend_30d: row.trend_30d,
     composite_signal: isComposite(row.composite_signal)
       ? row.composite_signal
       : "MIXED_SIGNAL",
+    volatility_term_structure: payload.volatility_term_structure,
+    dynamic_trend_aware_regime_multiplier:
+      payload.dynamic_trend_aware_regime_multiplier,
     hist_var_99_30d: row.hist_var_99_30d,
     fat_tail_ratio: row.fat_tail_ratio,
   };

@@ -143,10 +143,14 @@ export type RegimeHistoryPoint = {
   acceleration_vs_252d: number;
   vol_7d: number;
   vol_30d: number;
+  vol_60d: number;
   vol_90d: number;
+  vol_180d: number;
   vol_252d: number;
   trend_30d: number;
   composite_signal: CompositeSignal;
+  volatility_term_structure: VolatilityTermStructure;
+  dynamic_trend_aware_regime_multiplier: RegimeMultipliers;
   hist_var_99_30d: number;
   fat_tail_ratio: number;
 };

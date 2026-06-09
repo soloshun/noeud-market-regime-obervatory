@@ -12,7 +12,9 @@ import {
   SpotHistoryChart,
   TailRiskHistoryChart,
   TermStructureChart,
+  TermStructureHistoryChart,
   TrendAwareMultiplierOverlayChart,
+  TrendAwareMultiplierHistoryChart,
   VolatilityHistoryChart,
   VolWindowsChart,
 } from "@/components/regime/pair-charts";
@@ -111,6 +113,11 @@ function PairDetail({ code }: { code: string }) {
                     snapshot={snapshotQuery.data}
                     validation={latestValidation}
                   />
+                  <TrendAwareMultiplierHistoryChart
+                    history={historyQuery.data}
+                    validations={validations}
+                    pair={snapshotQuery.data.display_pair}
+                  />
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <SpotHistoryChart
                       observations={priceQuery.data ?? []}
@@ -120,6 +127,7 @@ function PairDetail({ code }: { code: string }) {
                   </div>
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <VolatilityHistoryChart history={historyQuery.data} />
+                    <TermStructureHistoryChart history={historyQuery.data} />
                     <TailRiskHistoryChart history={historyQuery.data} />
                   </div>
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
