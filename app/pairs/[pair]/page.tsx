@@ -127,14 +127,16 @@ function PairDetail({ code }: { code: string }) {
                   </div>
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <VolatilityHistoryChart history={historyQuery.data} />
-                    <TermStructureHistoryChart history={historyQuery.data} />
-                    <TailRiskHistoryChart history={historyQuery.data} />
+                    <VolWindowsChart snapshot={snapshotQuery.data} />
                   </div>
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    <VolWindowsChart snapshot={snapshotQuery.data} />
+                    <TermStructureHistoryChart history={historyQuery.data} />
                     <TermStructureChart snapshot={snapshotQuery.data} />
                   </div>
-                  <MultiplierChart snapshot={snapshotQuery.data} />
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    <TailRiskHistoryChart history={historyQuery.data} />
+                    <MultiplierChart snapshot={snapshotQuery.data} />
+                  </div>
                 </>
               ) : (
                 <Skeleton className="h-[260px] rounded-xl" />

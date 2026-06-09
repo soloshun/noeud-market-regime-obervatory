@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import {
   Bar,
   BarChart,
@@ -21,6 +22,13 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatMultiplier, formatNumber } from "@/lib/format";
 import { REGIME_TONES } from "@/lib/regime";
 import {
@@ -28,6 +36,7 @@ import {
   type RegimeHistoryPoint,
   type RegimeLabel,
   type RegimeSnapshot,
+  type TrendAwareMultiplierMap,
   type ValidationRun,
 } from "@/lib/types";
 import {
@@ -42,9 +51,49 @@ function shortDate(value: string) {
   });
 }
 
-function average(values: number[]) {
-  return values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1);
-}
+const OVERVIEW_TREND_AWARE_SERIES = [
+  {
+    key: "tenor_le_14d",
+    label: "≤14d",
+    quantKey: "quant14",
+    llmKey: "llm14",
+    color: "#f97316",
+  },
+  {
+    key: "tenor_le_30d",
+    label: "≤30d",
+    quantKey: "quant30",
+    llmKey: "llm30",
+    color: "#eab308",
+  },
+  {
+    key: "tenor_le_60d",
+    label: "≤60d",
+    quantKey: "quant60",
+    llmKey: "llm60",
+    color: "#22c55e",
+  },
+  {
+    key: "tenor_le_90d",
+    label: "≤90d",
+    quantKey: "quant90",
+    llmKey: "llm90",
+    color: "#06b6d4",
+  },
+  {
+    key: "tenor_le_180d",
+    label: "≤180d",
+    quantKey: "quant180",
+    llmKey: "llm180",
+    color: "#8b5cf6",
+  },
+] as const satisfies readonly {
+  key: keyof TrendAwareMultiplierMap;
+  label: string;
+  quantKey: string;
+  llmKey: string;
+  color: string;
+}[];
 
 function latestValidationByPairDate(validations: ValidationRun[]) {
   const byKey = new Map<string, ValidationRun>();
@@ -64,45 +113,64 @@ export function TrendAwareOverviewHistoryChart({
   validations: ValidationRun[];
 }) {
   const validationByPairDate = latestValidationByPairDate(validations);
-  const dates = Array.from(
-    new Set(Object.values(histories).flatMap((points) => points.map((p) => p.as_of_date))),
-  ).sort();
-  const data = dates.map((date) => {
-    const quantValues: number[] = [];
-    const llmValues: number[] = [];
-    for (const [pair, points] of Object.entries(histories)) {
-      const point = points.find((item) => item.as_of_date === date);
-      if (!point) continue;
-      quantValues.push(
-        point.dynamic_trend_aware_regime_multiplier.tenor_le_30d,
-      );
-      const llm = validationByPairDate.get(`${pair}:${date}`)?.result
-        .llm_recommended_trend_aware_multipliers.tenor_le_30d;
-      if (llm != null) llmValues.push(llm);
+  const pairs = React.useMemo(() => Object.keys(histories).sort(), [histories]);
+  const defaultPair = pairs.includes("USDGHS") ? "USDGHS" : pairs[0] ?? "";
+  const [selectedPair, setSelectedPair] = React.useState("USDGHS");
+  const activePair = pairs.includes(selectedPair) ? selectedPair : defaultPair;
+  const points = histories[activePair] ?? [];
+  const data = points.map((point) => {
+    const quant = point.dynamic_trend_aware_regime_multiplier;
+    const llm = validationByPairDate.get(`${activePair}:${point.as_of_date}`)
+      ?.result.llm_recommended_trend_aware_multipliers;
+    const row: Record<string, string | number | null> = { date: point.as_of_date };
+    for (const series of OVERVIEW_TREND_AWARE_SERIES) {
+      row[series.quantKey] = quant[series.key];
+      row[series.llmKey] = llm?.[series.key] ?? null;
     }
-    return {
-      date,
-      quant30: quantValues.length ? average(quantValues) : null,
-      llm30: llmValues.length ? average(llmValues) : null,
-    };
+    return row;
   });
   const dot = data.length < 2 ? { r: 3 } : false;
+  const chartConfig = Object.fromEntries(
+    OVERVIEW_TREND_AWARE_SERIES.flatMap((series) => [
+      [series.quantKey, { label: `Quant ${series.label}`, color: series.color }],
+      [series.llmKey, { label: `LLM ${series.label}`, color: series.color }],
+    ]),
+  );
+  const labels = Object.fromEntries(
+    OVERVIEW_TREND_AWARE_SERIES.flatMap((series) => [
+      [series.quantKey, `Quant ${series.label}`],
+      [series.llmKey, `LLM ${series.label}`],
+    ]),
+  );
 
   return (
     <Card className="border-foreground/10 bg-card/95">
-      <CardHeader>
-        <CardTitle>Rolling Trend-Aware Multiplier Path</CardTitle>
-        <CardDescription>
-          Average 30d deterministic multiplier versus LLM recommendations across active pairs
-        </CardDescription>
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <CardTitle>Rolling Trend-Aware Multiplier Path</CardTitle>
+          <CardDescription>
+            Pair-specific deterministic multipliers versus LLM recommendations through ≤180d
+          </CardDescription>
+        </div>
+        {pairs.length > 0 && (
+          <Select value={activePair} onValueChange={setSelectedPair}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Select pair" />
+            </SelectTrigger>
+            <SelectContent>
+              {pairs.map((pair) => (
+                <SelectItem key={pair} value={pair}>
+                  {pair.slice(0, 3)}/{pair.slice(3)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </CardHeader>
       <CardContent>
         <ChartContainer
-          config={{
-            quant30: { label: "Quant 30d", color: "var(--chart-3)" },
-            llm30: { label: "LLM 30d", color: "var(--chart-1)" },
-          }}
-          className="aspect-auto h-[300px] w-full"
+          config={chartConfig}
+          className="aspect-auto h-[340px] w-full"
         >
           <LineChart data={data} margin={{ top: 8, right: 16, left: 4, bottom: 0 }}>
             <CartesianGrid vertical={false} />
@@ -115,21 +183,44 @@ export function TrendAwareOverviewHistoryChart({
               content={
                 <ChartTooltipContent
                   labelFormatter={(value) => shortDate(String(value))}
-                  formatter={(value, name) => (
-                    <span className="flex w-full min-w-36 items-center justify-between gap-3">
-                      <span className="text-muted-foreground">
-                        {name === "quant30" ? "Quant 30d" : "LLM 30d"}
+                  formatter={(value, name) => {
+                    const key = String(name);
+                    return (
+                      <span className="flex w-full min-w-36 items-center justify-between gap-3">
+                        <span className="text-muted-foreground">
+                          {labels[key] ?? key}
+                        </span>
+                        <span className="font-mono font-medium text-foreground">
+                          {formatMultiplier(Number(value))}
+                        </span>
                       </span>
-                      <span className="font-mono font-medium text-foreground">
-                        {formatMultiplier(Number(value))}
-                      </span>
-                    </span>
-                  )}
+                    );
+                  }}
                 />
               }
             />
-            <Line dataKey="quant30" type="monotone" stroke="var(--color-quant30)" strokeWidth={2.25} dot={dot} />
-            <Line dataKey="llm30" type="monotone" stroke="var(--color-llm30)" strokeWidth={2.25} strokeDasharray="5 4" connectNulls dot={{ r: 4, fill: "var(--color-llm30)" }} />
+            {OVERVIEW_TREND_AWARE_SERIES.map((series) => (
+              <Line
+                key={series.quantKey}
+                dataKey={series.quantKey}
+                type="monotone"
+                stroke={`var(--color-${series.quantKey})`}
+                strokeWidth={2}
+                dot={dot}
+              />
+            ))}
+            {OVERVIEW_TREND_AWARE_SERIES.map((series) => (
+              <Line
+                key={series.llmKey}
+                dataKey={series.llmKey}
+                type="monotone"
+                stroke={`var(--color-${series.llmKey})`}
+                strokeWidth={2.2}
+                strokeDasharray="5 4"
+                connectNulls
+                dot={{ r: 3, fill: `var(--color-${series.llmKey})` }}
+              />
+            ))}
           </LineChart>
         </ChartContainer>
       </CardContent>

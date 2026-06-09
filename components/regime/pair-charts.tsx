@@ -34,6 +34,7 @@ import type {
   RegimeLabel,
   RegimeSnapshot,
   RawPriceObservation,
+  TrendAwareMultiplierMap,
   ValidationRun,
 } from "@/lib/types";
 
@@ -45,6 +46,96 @@ const VOL_WINDOWS: { key: keyof RegimeSnapshot["current_volatility_readings"]; l
   { key: "vol_180d", label: "180d" },
   { key: "vol_252d", label: "252d" },
 ];
+
+const TREND_AWARE_SERIES = [
+  {
+    key: "tenor_le_14d",
+    label: "≤14d",
+    quantKey: "quant14",
+    llmKey: "llm14",
+    color: "#f97316",
+  },
+  {
+    key: "tenor_le_30d",
+    label: "≤30d",
+    quantKey: "quant30",
+    llmKey: "llm30",
+    color: "#eab308",
+  },
+  {
+    key: "tenor_le_60d",
+    label: "≤60d",
+    quantKey: "quant60",
+    llmKey: "llm60",
+    color: "#22c55e",
+  },
+  {
+    key: "tenor_le_90d",
+    label: "≤90d",
+    quantKey: "quant90",
+    llmKey: "llm90",
+    color: "#06b6d4",
+  },
+  {
+    key: "tenor_le_180d",
+    label: "≤180d",
+    quantKey: "quant180",
+    llmKey: "llm180",
+    color: "#8b5cf6",
+  },
+  {
+    key: "tenor_gt_180d",
+    label: ">180d",
+    quantKey: "quantLong",
+    llmKey: "llmLong",
+    color: "#f43f5e",
+  },
+] as const satisfies readonly {
+  key: keyof TrendAwareMultiplierMap;
+  label: string;
+  quantKey: string;
+  llmKey: string;
+  color: string;
+}[];
+
+const TERM_STRUCTURE_HISTORY_SERIES = [
+  {
+    key: "tenor_le_7d",
+    dataKey: "tenor7",
+    label: "≤7d",
+    color: "#60a5fa",
+  },
+  {
+    key: "tenor_le_30d",
+    dataKey: "tenor30",
+    label: "≤30d",
+    color: "#22c55e",
+  },
+  {
+    key: "tenor_le_60d",
+    dataKey: "tenor60",
+    label: "≤60d",
+    color: "#eab308",
+  },
+  {
+    key: "tenor_le_90d",
+    dataKey: "tenor90",
+    label: "≤90d",
+    color: "#f97316",
+  },
+  {
+    key: "tenor_le_180d",
+    dataKey: "tenor180",
+    label: "≤180d",
+    color: "#8b5cf6",
+  },
+  {
+    key: "tenor_gt_180d",
+    dataKey: "tenorLong",
+    label: ">180d",
+    color: "#f43f5e",
+  },
+] as const;
 
 function shortDate(value: string) {
   return new Date(value).toLocaleDateString("en-GB", { month: "short", day: "numeric" });
@@ -189,7 +280,7 @@ export function VolatilityHistoryChart({ history }: { history: RegimeHistoryPoin
     <Card>
       <CardHeader>
         <CardTitle>Realized Volatility Path</CardTitle>
-        <CardDescription>30d, 90d, and 252d annualized vol used by the regime engine</CardDescription>
+        <CardDescription>30d, 60d, 90d, 180d, and 252d annualized vol used by the regime engine</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer
@@ -314,17 +405,28 @@ export function TrendAwareMultiplierHistoryChart({
     const quant = point.dynamic_trend_aware_regime_multiplier;
     const llm = validationByDate.get(point.as_of_date)?.result
       .llm_recommended_trend_aware_multipliers;
-    return {
+    const row: Record<string, string | number | null> = {
       date: point.as_of_date,
-      quant30: quant.tenor_le_30d,
-      llm30: llm?.tenor_le_30d ?? null,
-      quant90: quant.tenor_le_90d,
-      llm90: llm?.tenor_le_90d ?? null,
-      quant180: quant.tenor_le_180d,
-      llm180: llm?.tenor_le_180d ?? null,
     };
+    for (const series of TREND_AWARE_SERIES) {
+      row[series.quantKey] = quant[series.key];
+      row[series.llmKey] = llm?.[series.key] ?? null;
+    }
+    return row;
   });
   const dot = data.length < 2 ? { r: 3 } : false;
+  const chartConfig = Object.fromEntries(
+    TREND_AWARE_SERIES.flatMap((series) => [
+      [series.quantKey, { label: `Quant ${series.label}`, color: series.color }],
+      [series.llmKey, { label: `LLM ${series.label}`, color: series.color }],
+    ]),
+  );
+  const labels = Object.fromEntries(
+    TREND_AWARE_SERIES.flatMap((series) => [
+      [series.quantKey, `Quant ${series.label}`],
+      [series.llmKey, `LLM ${series.label}`],
+    ]),
+  );
 
   return (
     <Card>
@@ -336,15 +438,8 @@ export function TrendAwareMultiplierHistoryChart({
       </CardHeader>
       <CardContent>
         <ChartContainer
-          config={{
-            quant30: { label: "Quant 30d", color: "var(--chart-3)" },
-            llm30: { label: "LLM 30d", color: "var(--chart-1)" },
-            quant90: { label: "Quant 90d", color: "var(--chart-4)" },
-            llm90: { label: "LLM 90d", color: "var(--chart-2)" },
-            quant180: { label: "Quant 180d", color: "var(--chart-5)" },
-            llm180: { label: "LLM 180d", color: "var(--chart-1)" },
-          }}
-          className="aspect-auto h-[300px] w-full"
+          config={chartConfig}
+          className="aspect-auto h-[360px] w-full"
         >
           <LineChart data={data} margin={{ top: 8, right: 16, left: 4, bottom: 0 }}>
             <CartesianGrid vertical={false} />
@@ -358,25 +453,34 @@ export function TrendAwareMultiplierHistoryChart({
                 <ChartTooltipContent
                   labelFormatter={(v) => shortDate(String(v))}
                   formatter={legendTooltipFormatter(
-                    {
-                      quant30: "Quant 30d",
-                      llm30: "LLM 30d",
-                      quant90: "Quant 90d",
-                      llm90: "LLM 90d",
-                      quant180: "Quant 180d",
-                      llm180: "LLM 180d",
-                    },
+                    labels,
                     (value) => formatMultiplier(value),
                   )}
                 />
               }
             />
-            <Line dataKey="quant30" type="monotone" stroke="var(--color-quant30)" strokeWidth={2.25} dot={dot} />
-            <Line dataKey="llm30" type="monotone" stroke="var(--color-llm30)" strokeWidth={2.25} strokeDasharray="5 4" connectNulls dot={{ r: 4, fill: "var(--color-llm30)" }} />
-            <Line dataKey="quant90" type="monotone" stroke="var(--color-quant90)" strokeWidth={1.7} strokeOpacity={0.75} dot={dot} />
-            <Line dataKey="llm90" type="monotone" stroke="var(--color-llm90)" strokeWidth={1.7} strokeDasharray="5 4" connectNulls dot={{ r: 3, fill: "var(--color-llm90)" }} />
-            <Line dataKey="quant180" type="monotone" stroke="var(--color-quant180)" strokeWidth={1.5} strokeOpacity={0.65} dot={dot} />
-            <Line dataKey="llm180" type="monotone" stroke="var(--color-llm180)" strokeWidth={1.5} strokeDasharray="5 4" connectNulls dot={{ r: 3, fill: "var(--color-llm180)" }} />
+            {TREND_AWARE_SERIES.map((series) => (
+              <Line
+                key={series.quantKey}
+                dataKey={series.quantKey}
+                type="monotone"
+                stroke={`var(--color-${series.quantKey})`}
+                strokeWidth={2}
+                dot={dot}
+              />
+            ))}
+            {TREND_AWARE_SERIES.map((series) => (
+              <Line
+                key={series.llmKey}
+                dataKey={series.llmKey}
+                type="monotone"
+                stroke={`var(--color-${series.llmKey})`}
+                strokeWidth={2.25}
+                strokeDasharray="5 4"
+                connectNulls
+                dot={{ r: 3, fill: `var(--color-${series.llmKey})` }}
+              />
+            ))}
           </LineChart>
         </ChartContainer>
       </CardContent>
@@ -387,12 +491,23 @@ export function TrendAwareMultiplierHistoryChart({
 export function TermStructureHistoryChart({ history }: { history: RegimeHistoryPoint[] }) {
   const data = history.map((point) => ({
     date: point.as_of_date,
+    tenor7: point.volatility_term_structure.tenor_le_7d,
     tenor30: point.volatility_term_structure.tenor_le_30d,
+    tenor60: point.volatility_term_structure.tenor_le_60d,
     tenor90: point.volatility_term_structure.tenor_le_90d,
     tenor180: point.volatility_term_structure.tenor_le_180d,
     tenorLong: point.volatility_term_structure.tenor_gt_180d,
   }));
   const dot = data.length < 2 ? { r: 3 } : false;
+  const chartConfig = Object.fromEntries(
+    TERM_STRUCTURE_HISTORY_SERIES.map((series) => [
+      series.dataKey,
+      { label: series.label, color: series.color },
+    ]),
+  );
+  const labels = Object.fromEntries(
+    TERM_STRUCTURE_HISTORY_SERIES.map((series) => [series.dataKey, series.label]),
+  );
 
   return (
     <Card>
@@ -402,12 +517,7 @@ export function TermStructureHistoryChart({ history }: { history: RegimeHistoryP
       </CardHeader>
       <CardContent>
         <ChartContainer
-          config={{
-            tenor30: { label: "≤30d", color: "var(--chart-1)" },
-            tenor90: { label: "≤90d", color: "var(--chart-2)" },
-            tenor180: { label: "≤180d", color: "var(--chart-4)" },
-            tenorLong: { label: ">180d", color: "var(--chart-5)" },
-          }}
+          config={chartConfig}
           className="aspect-auto h-[260px] w-full"
         >
           <LineChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
@@ -420,21 +530,22 @@ export function TermStructureHistoryChart({ history }: { history: RegimeHistoryP
                 <ChartTooltipContent
                   labelFormatter={(v) => shortDate(String(v))}
                   formatter={legendTooltipFormatter(
-                    {
-                      tenor30: "≤30d",
-                      tenor90: "≤90d",
-                      tenor180: "≤180d",
-                      tenorLong: ">180d",
-                    },
+                    labels,
                     (value) => formatVol(value),
                   )}
                 />
               }
             />
-            <Line dataKey="tenor30" type="monotone" stroke="var(--color-tenor30)" strokeWidth={2} dot={dot} />
-            <Line dataKey="tenor90" type="monotone" stroke="var(--color-tenor90)" strokeWidth={2} dot={dot} />
-            <Line dataKey="tenor180" type="monotone" stroke="var(--color-tenor180)" strokeWidth={2} dot={dot} />
-            <Line dataKey="tenorLong" type="monotone" stroke="var(--color-tenorLong)" strokeWidth={2} dot={dot} />
+            {TERM_STRUCTURE_HISTORY_SERIES.map((series) => (
+              <Line
+                key={series.dataKey}
+                dataKey={series.dataKey}
+                type="monotone"
+                stroke={`var(--color-${series.dataKey})`}
+                strokeWidth={2}
+                dot={dot}
+              />
+            ))}
           </LineChart>
         </ChartContainer>
       </CardContent>
