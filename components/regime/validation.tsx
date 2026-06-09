@@ -13,6 +13,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DatePickerNaturalLanguage } from "@/components/ui/date-picker-natural-language";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -264,6 +265,27 @@ function validationRunLabel(run: ValidationRun) {
 function validationRunDate(run: ValidationRun) {
   return new Date(run.created_at).toISOString().slice(0, 10);
 }
+
+function validationRunTime(run: ValidationRun) {
+  const date = new Date(run.created_at);
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function dateKeyToDate(value: string) {
+  return value ? new Date(`${value}T00:00:00`) : undefined;
+}
+
+function dateToKey(value?: Date) {
+  return value ? value.toISOString().slice(0, 10) : "";
+}
+
+function minutesFromTime(value: string) {
+  const [hours, minutes] = value.split(":").map(Number);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return undefined;
+  return hours * 60 + minutes;
+}
+
+const VALIDATION_HISTORY_START_DATE = "2026-06-04";
 
 function ValidationOutputLedger({ run }: { run: ValidationRun }) {
   const r = run.result;
@@ -525,6 +547,9 @@ export function PairValidations({
   const [selectedDate, setSelectedDate] = React.useState(
     initialSelected ? validationRunDate(initialSelected) : "",
   );
+  const [selectedTime, setSelectedTime] = React.useState(
+    initialSelected ? validationRunTime(initialSelected) : "",
+  );
 
   if (ordered.length === 0) {
     return (
@@ -545,18 +570,43 @@ export function PairValidations({
     ).values(),
   ).sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
   const firstDate = ordered[ordered.length - 1] ? validationRunDate(ordered[ordered.length - 1]) : undefined;
+  const earliestSelectableDate =
+    firstDate && firstDate > VALIDATION_HISTORY_START_DATE
+      ? firstDate
+      : VALIDATION_HISTORY_START_DATE;
   const lastDate = ordered[0] ? validationRunDate(ordered[0]) : undefined;
   const selectedDateHasRuns = selectedDateRuns.length > 0;
+  const bestRunForDateTime = (date: string, time: string) => {
+    const runsOnDate = ordered.filter((item) => validationRunDate(item) === date);
+    if (!runsOnDate.length) return undefined;
+    const targetMinutes = minutesFromTime(time);
+    if (targetMinutes == null) return runsOnDate[0];
+    return runsOnDate.reduce((best, run) => {
+      const bestDistance = Math.abs(minutesFromTime(validationRunTime(best))! - targetMinutes);
+      const runDistance = Math.abs(minutesFromTime(validationRunTime(run))! - targetMinutes);
+      return runDistance < bestDistance ? run : best;
+    }, runsOnDate[0]);
+  };
 
   const selectRun = (runId: string) => {
     const run = ordered.find((item) => item.id === runId);
     setSelectedId(runId);
-    if (run) setSelectedDate(validationRunDate(run));
+    if (run) {
+      setSelectedDate(validationRunDate(run));
+      setSelectedTime(validationRunTime(run));
+    }
   };
 
-  const selectDate = (date: string) => {
-    setSelectedDate(date);
-    const run = ordered.find((item) => validationRunDate(item) === date);
+  const selectDate = (date?: Date) => {
+    const dateKey = dateToKey(date);
+    setSelectedDate(dateKey);
+    const run = bestRunForDateTime(dateKey, selectedTime);
+    if (run) setSelectedId(run.id);
+  };
+
+  const selectTime = (time: string) => {
+    setSelectedTime(time);
+    const run = bestRunForDateTime(selectedDate, time);
     if (run) setSelectedId(run.id);
   };
 
@@ -579,7 +629,7 @@ export function PairValidations({
                 <ValidationStatusBadge status={selected.status} />
               </div>
             </div>
-            <div className="grid w-full gap-3 md:grid-cols-[minmax(0,1fr)_160px] lg:w-[560px]">
+            <div className="grid w-full gap-3 md:grid-cols-[minmax(0,1fr)_minmax(280px,360px)_110px] lg:w-[920px]">
               <div className="flex flex-col gap-1.5">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Review run
@@ -604,18 +654,31 @@ export function PairValidations({
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Jump to date
                 </span>
-                <Input
-                  type="date"
-                  value={selectedDate}
-                  min={firstDate}
-                  max={lastDate}
-                  onChange={(event) => selectDate(event.target.value)}
-                  className="h-10 font-mono text-xs"
+                <DatePickerNaturalLanguage
+                  value={dateKeyToDate(selectedDate)}
+                  min={dateKeyToDate(earliestSelectableDate)}
+                  max={dateKeyToDate(lastDate ?? "")}
+                  onChange={selectDate}
+                  placeholder="e.g. last Friday"
                 />
                 <span className="text-[11px] text-muted-foreground">
                   {selectedDateHasRuns
                     ? `${selectedDateRuns.length} run${selectedDateRuns.length === 1 ? "" : "s"} on date`
                     : "No run on selected date"}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Time
+                </span>
+                <Input
+                  type="time"
+                  value={selectedTime}
+                  onChange={(event) => selectTime(event.target.value)}
+                  className="h-10 font-mono text-xs"
+                />
+                <span className="text-[11px] text-muted-foreground">
+                  Nearest run
                 </span>
               </div>
             </div>
