@@ -4,7 +4,11 @@ import * as React from "react";
 import Link from "next/link";
 import { ExternalLinkIcon, SparklesIcon } from "lucide-react";
 
-import { ActionBadge, RegimeBadge, ValidationStatusBadge } from "@/components/regime/badges";
+import {
+  ActionBadge,
+  RegimeBadge,
+  ValidationStatusBadge,
+} from "@/components/regime/badges";
 import { EmptyState, Stat } from "@/components/regime/primitives";
 import {
   Accordion,
@@ -12,9 +16,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { DatePickerNaturalLanguage } from "@/components/ui/date-picker-natural-language";
-import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
   Select,
@@ -31,7 +40,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDate, formatDateTime, formatMultiplier, formatNumber, titleCase } from "@/lib/format";
+import { TimePickerIcon } from "@/components/ui/time-picker-icon";
+import {
+  formatDate,
+  formatDateTime,
+  formatMultiplier,
+  formatNumber,
+  titleCase,
+} from "@/lib/format";
 import {
   MARKET_SENTIMENT_LABELS,
   MULTIPLIER_BUCKETS,
@@ -54,7 +70,9 @@ function formatMaybeJson(raw: string): string {
 
 export function TrendAwareAdjustmentCard({ run }: { run: ValidationRun }) {
   const r = run.result;
-  const delta = r.recommended_primary_trend_multiplier - r.deterministic_primary_trend_multiplier;
+  const delta =
+    r.recommended_primary_trend_multiplier -
+    r.deterministic_primary_trend_multiplier;
   const positive = delta > 0;
   const neutral = Math.abs(delta) < 0.0001;
   const ladder = MULTIPLIER_BUCKETS.map((bucket) => {
@@ -107,7 +125,8 @@ export function TrendAwareAdjustmentCard({ run }: { run: ValidationRun }) {
               {TREND_ADJUSTMENT_LABELS[r.trend_adjustment_direction]}
             </span>
             <span className="text-muted-foreground">
-              {formatNumber(r.trend_adjustment_confidence * 100, 0)}% adjustment confidence
+              {formatNumber(r.trend_adjustment_confidence * 100, 0)}% adjustment
+              confidence
             </span>
           </div>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -118,10 +137,18 @@ export function TrendAwareAdjustmentCard({ run }: { run: ValidationRun }) {
           <Table className="min-w-[620px]">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="px-3 font-mono text-[11px] uppercase tracking-wide">Tenor</TableHead>
-                <TableHead className="px-3 text-right font-mono text-[11px] uppercase tracking-wide">Quant</TableHead>
-                <TableHead className="px-3 text-right font-mono text-[11px] uppercase tracking-wide">LLM</TableHead>
-                <TableHead className="px-3 text-right font-mono text-[11px] uppercase tracking-wide">Overlay</TableHead>
+                <TableHead className="px-3 font-mono text-[11px] uppercase tracking-wide">
+                  Tenor
+                </TableHead>
+                <TableHead className="px-3 text-right font-mono text-[11px] uppercase tracking-wide">
+                  Quant
+                </TableHead>
+                <TableHead className="px-3 text-right font-mono text-[11px] uppercase tracking-wide">
+                  LLM
+                </TableHead>
+                <TableHead className="px-3 text-right font-mono text-[11px] uppercase tracking-wide">
+                  Overlay
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -131,7 +158,9 @@ export function TrendAwareAdjustmentCard({ run }: { run: ValidationRun }) {
                 return (
                   <TableRow
                     key={row.key}
-                    className={cn(row.key === r.primary_trend_aware_tenor && "bg-muted/35")}
+                    className={cn(
+                      row.key === r.primary_trend_aware_tenor && "bg-muted/35",
+                    )}
                   >
                     <TableCell className="px-3 py-2 font-mono text-xs">
                       {row.label}
@@ -151,7 +180,9 @@ export function TrendAwareAdjustmentCard({ run }: { run: ValidationRun }) {
                       className={cn(
                         "px-3 py-2 text-right font-mono text-xs tabular-nums",
                         rowPositive && "text-red-600 dark:text-red-400",
-                        !rowPositive && !rowNeutral && "text-emerald-600 dark:text-emerald-400",
+                        !rowPositive &&
+                          !rowNeutral &&
+                          "text-emerald-600 dark:text-emerald-400",
                         rowNeutral && "text-muted-foreground",
                       )}
                     >
@@ -165,7 +196,11 @@ export function TrendAwareAdjustmentCard({ run }: { run: ValidationRun }) {
           </Table>
         </div>
         {r.trend_driver_evidence.length > 0 && (
-          <PointList title="Trend drivers" points={r.trend_driver_evidence} tone="bg-sky-500" />
+          <PointList
+            title="Trend drivers"
+            points={r.trend_driver_evidence}
+            tone="bg-sky-500"
+          />
         )}
       </CardContent>
     </Card>
@@ -176,7 +211,9 @@ function ConfidenceBar({ value }: { value: number }) {
   return (
     <div className="flex items-center gap-2">
       <Progress value={value * 100} className="h-2 w-24" />
-      <span className="font-mono text-xs tabular-nums">{formatNumber(value * 100, 0)}%</span>
+      <span className="font-mono text-xs tabular-nums">
+        {formatNumber(value * 100, 0)}%
+      </span>
     </div>
   );
 }
@@ -200,10 +237,13 @@ export function ValidationSummaryCard({
             <CardTitle className="flex items-center gap-2 text-sm">
               <SparklesIcon className="size-4 text-muted-foreground" />
               LLM Validation
-              <span className="font-normal text-muted-foreground">· latest</span>
+              <span className="font-normal text-muted-foreground">
+                · latest
+              </span>
             </CardTitle>
             <CardDescription className="mt-1">
-              {VALIDATION_RUN_SOURCE_LABELS[run.run_source]} · {run.model_name} · {formatDateTime(run.created_at)}
+              {VALIDATION_RUN_SOURCE_LABELS[run.run_source]} · {run.model_name}{" "}
+              · {formatDateTime(run.created_at)}
             </CardDescription>
           </div>
           <ValidationStatusBadge status={r.status} />
@@ -212,17 +252,34 @@ export function ValidationSummaryCard({
       <CardContent className="space-y-4">
         <p className="text-sm leading-relaxed">{r.validation_summary}</p>
         <div className="grid grid-cols-2 gap-4">
-          <Stat label="Deterministic regime" value={<RegimeBadge regime={r.deterministic_regime} />} mono={false} />
-          <Stat label="External context read" value={r.external_context_regime_read} mono={false} />
+          <Stat
+            label="Deterministic regime"
+            value={<RegimeBadge regime={r.deterministic_regime} />}
+            mono={false}
+          />
+          <Stat
+            label="External context read"
+            value={r.external_context_regime_read}
+            mono={false}
+          />
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">Confidence</span>
             <ConfidenceBar value={r.confidence} />
           </div>
-          <Stat label="Recommended action" value={<ActionBadge action={r.recommended_action} />} mono={false} />
+          <Stat
+            label="Recommended action"
+            value={<ActionBadge action={r.recommended_action} />}
+            mono={false}
+          />
         </div>
         {href && (
-          <Link href={href} className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
-            {runCount > 1 ? `View all ${runCount} validation runs` : "View full validation trace"}
+          <Link
+            href={href}
+            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          >
+            {runCount > 1
+              ? `View all ${runCount} validation runs`
+              : "View full validation trace"}
             <ExternalLinkIcon className="size-3.5" />
           </Link>
         )}
@@ -231,11 +288,21 @@ export function ValidationSummaryCard({
   );
 }
 
-function PointList({ title, points, tone }: { title: string; points: string[]; tone: string }) {
+function PointList({
+  title,
+  points,
+  tone,
+}: {
+  title: string;
+  points: string[];
+  tone: string;
+}) {
   if (points.length === 0) return null;
   return (
     <div>
-      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h4>
+      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h4>
       <ul className="space-y-1.5">
         {points.map((p, i) => (
           <li key={i} className="flex gap-2 text-sm">
@@ -251,9 +318,15 @@ function PointList({ title, points, tone }: { title: string; points: string[]; t
 function ScorerRow({ result }: { result: ValidationResult }) {
   return (
     <TableRow>
-      <TableCell className="px-6 font-mono text-xs">{result.scorer_model}</TableCell>
-      <TableCell><ValidationStatusBadge status={result.status} /></TableCell>
-      <TableCell className="px-6 text-right"><ConfidenceBar value={result.confidence} /></TableCell>
+      <TableCell className="px-6 font-mono text-xs">
+        {result.scorer_model}
+      </TableCell>
+      <TableCell>
+        <ValidationStatusBadge status={result.status} />
+      </TableCell>
+      <TableCell className="px-6 text-right">
+        <ConfidenceBar value={result.confidence} />
+      </TableCell>
     </TableRow>
   );
 }
@@ -297,7 +370,10 @@ function ValidationOutputLedger({ run }: { run: ValidationRun }) {
     ["External context read", r.external_context_regime_read],
     ["Market sentiment", MARKET_SENTIMENT_LABELS[r.market_sentiment]],
     ["Trend adjustment", TREND_ADJUSTMENT_LABELS[r.trend_adjustment_direction]],
-    ["Adjustment confidence", `${formatNumber(r.trend_adjustment_confidence * 100, 0)}%`],
+    [
+      "Adjustment confidence",
+      `${formatNumber(r.trend_adjustment_confidence * 100, 0)}%`,
+    ],
     ["Recommended action", titleCase(r.recommended_action)],
     ["Scorer model", r.scorer_model],
     ["Prompt version", r.prompt_version],
@@ -307,29 +383,47 @@ function ValidationOutputLedger({ run }: { run: ValidationRun }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-sm">LLM Output Ledger</CardTitle>
-        <CardDescription>Every first-class validation field captured from the JSON result</CardDescription>
+        <CardDescription>
+          Every first-class validation field captured from the JSON result
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 gap-x-6 gap-y-2 md:grid-cols-2 xl:grid-cols-3">
           {rows.map(([label, value]) => (
             <div key={label} className="border-l pl-3">
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
-              <div className="mt-0.5 break-words font-mono text-xs font-medium">{value}</div>
+              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                {label}
+              </div>
+              <div className="mt-0.5 break-words font-mono text-xs font-medium">
+                {value}
+              </div>
             </div>
           ))}
         </div>
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
           <div className="rounded-lg border bg-muted/20 p-3">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Validation summary</div>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{r.validation_summary}</p>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Validation summary
+            </div>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              {r.validation_summary}
+            </p>
           </div>
           <div className="rounded-lg border bg-muted/20 p-3">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Trend-aware summary</div>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{r.trend_aware_validation_summary}</p>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Trend-aware summary
+            </div>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              {r.trend_aware_validation_summary}
+            </p>
           </div>
           <div className="rounded-lg border bg-muted/20 p-3">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Adjustment rationale</div>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{r.trend_adjustment_rationale}</p>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Adjustment rationale
+            </div>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              {r.trend_adjustment_rationale}
+            </p>
           </div>
         </div>
       </CardContent>
@@ -354,45 +448,88 @@ export function ValidationDetail({ run }: { run: ValidationRun }) {
             <CardDescription>Aggregated verdict reasoning</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm leading-relaxed text-muted-foreground">{r.rationale}</p>
-            <PointList title="Supporting points" points={r.supporting_points} tone="bg-emerald-500" />
-            <PointList title="Contradicting points" points={r.contradicting_points} tone="bg-red-500" />
-            <PointList title="Watch items" points={r.watch_items} tone="bg-amber-500" />
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {r.rationale}
+            </p>
+            <PointList
+              title="Supporting points"
+              points={r.supporting_points}
+              tone="bg-emerald-500"
+            />
+            <PointList
+              title="Contradicting points"
+              points={r.contradicting_points}
+              tone="bg-red-500"
+            />
+            <PointList
+              title="Watch items"
+              points={r.watch_items}
+              tone="bg-amber-500"
+            />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">Research Brief</CardTitle>
-            <CardDescription>Grounded context · {brief.retrieval_model}</CardDescription>
+            <CardDescription>
+              Grounded context · {brief.retrieval_model}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Macro</span>
-              <p className="mt-1 leading-relaxed text-muted-foreground">{brief.macro_context}</p>
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Macro
+              </span>
+              <p className="mt-1 leading-relaxed text-muted-foreground">
+                {brief.macro_context}
+              </p>
             </div>
             <div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Central bank</span>
-              <p className="mt-1 leading-relaxed text-muted-foreground">{brief.central_bank_context}</p>
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Central bank
+              </span>
+              <p className="mt-1 leading-relaxed text-muted-foreground">
+                {brief.central_bank_context}
+              </p>
             </div>
             <div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Currency-specific</span>
-              <p className="mt-1 leading-relaxed text-muted-foreground">{brief.currency_specific_context}</p>
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Currency-specific
+              </span>
+              <p className="mt-1 leading-relaxed text-muted-foreground">
+                {brief.currency_specific_context}
+              </p>
             </div>
             <div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Market sentiment</span>
-              <p className="mt-1 leading-relaxed text-muted-foreground">{brief.market_sentiment_summary}</p>
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Market sentiment
+              </span>
+              <p className="mt-1 leading-relaxed text-muted-foreground">
+                {brief.market_sentiment_summary}
+              </p>
             </div>
             <div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Policy/liquidity</span>
-              <p className="mt-1 leading-relaxed text-muted-foreground">{brief.policy_liquidity_context}</p>
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Policy/liquidity
+              </span>
+              <p className="mt-1 leading-relaxed text-muted-foreground">
+                {brief.policy_liquidity_context}
+              </p>
             </div>
             {brief.risk_events.length > 0 && (
               <div>
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Risk events</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Risk events
+                </span>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {brief.risk_events.map((e, i) => (
-                    <span key={i} className="rounded-md border bg-muted/50 px-2 py-0.5 text-xs">{e}</span>
+                    <span
+                      key={i}
+                      className="rounded-md border bg-muted/50 px-2 py-0.5 text-xs"
+                    >
+                      {e}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -405,7 +542,9 @@ export function ValidationDetail({ run }: { run: ValidationRun }) {
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">Ensemble Scorers</CardTitle>
-            <CardDescription>Independent views aggregated into the final verdict</CardDescription>
+            <CardDescription>
+              Independent views aggregated into the final verdict
+            </CardDescription>
           </CardHeader>
           <CardContent className="px-0">
             <Table>
@@ -428,12 +567,14 @@ export function ValidationDetail({ run }: { run: ValidationRun }) {
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">Ensemble Scorers</CardTitle>
-            <CardDescription>Independent views aggregated into the final verdict</CardDescription>
+            <CardDescription>
+              Independent views aggregated into the final verdict
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-              No ensemble run for this validation — a single scorer model produced the verdict
-              shown above.
+              No ensemble run for this validation — a single scorer model
+              produced the verdict shown above.
             </p>
           </CardContent>
         </Card>
@@ -443,20 +584,34 @@ export function ValidationDetail({ run }: { run: ValidationRun }) {
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">Evidence</CardTitle>
-            <CardDescription>Cited sources behind the research brief</CardDescription>
+            <CardDescription>
+              Cited sources behind the research brief
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {brief.evidence.map((e, i) => (
-              <div key={i} className="flex items-start justify-between gap-4 rounded-lg border p-3">
+              <div
+                key={i}
+                className="flex items-start justify-between gap-4 rounded-lg border p-3"
+              >
                 <div className="min-w-0">
-                  <a href={e.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-sm font-medium hover:underline">
+                  <a
+                    href={e.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1 text-sm font-medium hover:underline"
+                  >
                     <span className="truncate">{e.title}</span>
                     <ExternalLinkIcon className="size-3 shrink-0 text-muted-foreground" />
                   </a>
-                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{e.excerpt}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                    {e.excerpt}
+                  </p>
                   <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{e.source}</span>
-                    {e.published_at && <span>· {formatDate(e.published_at)}</span>}
+                    {e.published_at && (
+                      <span>· {formatDate(e.published_at)}</span>
+                    )}
                   </div>
                 </div>
                 <span className="shrink-0 rounded-md border bg-muted/50 px-2 py-0.5 font-mono text-xs">
@@ -471,7 +626,9 @@ export function ValidationDetail({ run }: { run: ValidationRun }) {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">Raw Model Responses</CardTitle>
-          <CardDescription>Full audit trace for every model call</CardDescription>
+          <CardDescription>
+            Full audit trace for every model call
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Accordion type="multiple" className="w-full">
@@ -479,19 +636,29 @@ export function ValidationDetail({ run }: { run: ValidationRun }) {
               <AccordionItem key={i} value={`call-${i}`}>
                 <AccordionTrigger>
                   <span className="flex items-center gap-2 text-sm">
-                    <span className="rounded border bg-muted/50 px-1.5 py-0.5 text-xs">{titleCase(call.call_role)}</span>
-                    <span className="font-mono text-xs text-muted-foreground">{call.model}</span>
+                    <span className="rounded border bg-muted/50 px-1.5 py-0.5 text-xs">
+                      {titleCase(call.call_role)}
+                    </span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {call.model}
+                    </span>
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="space-y-3">
                   {call.reasoning_content && (
                     <div>
-                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Reasoning</span>
-                      <p className="mt-1 text-sm text-muted-foreground">{call.reasoning_content}</p>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Reasoning
+                      </span>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {call.reasoning_content}
+                      </p>
                     </div>
                   )}
                   <div>
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Raw content</span>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Raw content
+                    </span>
                     <pre className="mt-1 max-h-96 overflow-auto rounded-lg border bg-muted/30 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
                       {formatMaybeJson(call.raw_content)}
                     </pre>
@@ -504,7 +671,12 @@ export function ValidationDetail({ run }: { run: ValidationRun }) {
                       <ul className="mt-1 space-y-1">
                         {call.citations.map((c, ci) => (
                           <li key={ci}>
-                            <a href={c.url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">
+                            <a
+                              href={c.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-primary hover:underline"
+                            >
                               {c.title || c.url}
                             </a>
                           </li>
@@ -535,7 +707,10 @@ export function PairValidations({
   initialRunId?: string | null;
 }) {
   const ordered = React.useMemo(
-    () => [...runs].sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? "")),
+    () =>
+      [...runs].sort((a, b) =>
+        (b.created_at ?? "").localeCompare(a.created_at ?? ""),
+      ),
     [runs],
   );
   const initialSelected = initialRunId
@@ -566,10 +741,15 @@ export function PairValidations({
     : [];
   const dropdownRuns = Array.from(
     new Map(
-      [...ordered.slice(0, 10), ...selectedDateRuns, selected].map((run) => [run.id, run]),
+      [...ordered.slice(0, 10), ...selectedDateRuns, selected].map((run) => [
+        run.id,
+        run,
+      ]),
     ).values(),
   ).sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
-  const firstDate = ordered[ordered.length - 1] ? validationRunDate(ordered[ordered.length - 1]) : undefined;
+  const firstDate = ordered[ordered.length - 1]
+    ? validationRunDate(ordered[ordered.length - 1])
+    : undefined;
   const earliestSelectableDate =
     firstDate && firstDate > VALIDATION_HISTORY_START_DATE
       ? firstDate
@@ -577,13 +757,19 @@ export function PairValidations({
   const lastDate = ordered[0] ? validationRunDate(ordered[0]) : undefined;
   const selectedDateHasRuns = selectedDateRuns.length > 0;
   const bestRunForDateTime = (date: string, time: string) => {
-    const runsOnDate = ordered.filter((item) => validationRunDate(item) === date);
+    const runsOnDate = ordered.filter(
+      (item) => validationRunDate(item) === date,
+    );
     if (!runsOnDate.length) return undefined;
     const targetMinutes = minutesFromTime(time);
     if (targetMinutes == null) return runsOnDate[0];
     return runsOnDate.reduce((best, run) => {
-      const bestDistance = Math.abs(minutesFromTime(validationRunTime(best))! - targetMinutes);
-      const runDistance = Math.abs(minutesFromTime(validationRunTime(run))! - targetMinutes);
+      const bestDistance = Math.abs(
+        minutesFromTime(validationRunTime(best))! - targetMinutes,
+      );
+      const runDistance = Math.abs(
+        minutesFromTime(validationRunTime(run))! - targetMinutes,
+      );
       return runDistance < bestDistance ? run : best;
     }, runsOnDate[0]);
   };
@@ -614,22 +800,28 @@ export function PairValidations({
     <div className="space-y-4">
       {ordered.length > 1 && (
         <Card className="border-foreground/10 bg-card/95">
-          <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {ordered.length} validation runs · newest first
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-sm font-medium">
-                  {formatDateTime(selected.created_at)}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {VALIDATION_RUN_SOURCE_LABELS[selected.run_source]} · {selected.model_name}
-                </span>
-                <ValidationStatusBadge status={selected.status} />
+          <CardContent className="space-y-5 p-4">
+            <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {ordered.length} validation runs · newest first
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-sm font-medium">
+                    {formatDateTime(selected.created_at)}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {VALIDATION_RUN_SOURCE_LABELS[selected.run_source]} ·{" "}
+                    {selected.model_name}
+                  </span>
+                  <ValidationStatusBadge status={selected.status} />
+                </div>
               </div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                selected validation
+              </p>
             </div>
-            <div className="grid w-full gap-3 md:grid-cols-[minmax(0,1fr)_minmax(280px,360px)_110px] lg:w-[920px]">
+            <div className="grid w-full gap-4 lg:grid-cols-[minmax(240px,0.9fr)_minmax(340px,1.15fr)_150px]">
               <div className="flex flex-col gap-1.5">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Review run
@@ -671,12 +863,7 @@ export function PairValidations({
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Time
                 </span>
-                <Input
-                  type="time"
-                  value={selectedTime}
-                  onChange={(event) => selectTime(event.target.value)}
-                  className="h-10 font-mono text-xs"
-                />
+                <TimePickerIcon value={selectedTime} onChange={selectTime} />
                 <span className="text-[11px] text-muted-foreground">
                   Nearest run
                 </span>
