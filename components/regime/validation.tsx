@@ -15,6 +15,13 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -247,6 +254,10 @@ function ScorerRow({ result }: { result: ValidationResult }) {
       <TableCell className="px-6 text-right"><ConfidenceBar value={result.confidence} /></TableCell>
     </TableRow>
   );
+}
+
+function validationRunLabel(run: ValidationRun) {
+  return `${formatDateTime(run.created_at)} · ${VALIDATION_RUN_SOURCE_LABELS[run.run_source]}`;
 }
 
 function ValidationOutputLedger({ run }: { run: ValidationRun }) {
@@ -518,32 +529,41 @@ export function PairValidations({
   return (
     <div className="space-y-4">
       {ordered.length > 1 && (
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {ordered.length} validation runs · newest first
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {ordered.map((run) => (
-              <button
-                key={run.id}
-                onClick={() => setSelectedId(run.id)}
-                className={cn(
-                  "flex min-w-[150px] flex-col gap-1.5 rounded-lg border px-3 py-2 text-left transition-colors hover:bg-muted/40",
-                  run.id === selected.id ? "border-primary bg-muted/40" : "border-border",
-                )}
-              >
-                <span className="font-mono text-xs font-medium">
-                  {formatDateTime(run.created_at)}
+        <Card className="border-foreground/10 bg-card/95">
+          <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {ordered.length} validation runs · newest first
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-sm font-medium">
+                  {formatDateTime(selected.created_at)}
                 </span>
-                <span className="text-xs font-medium text-muted-foreground">
-                  {VALIDATION_RUN_SOURCE_LABELS[run.run_source]}
+                <span className="text-sm text-muted-foreground">
+                  {VALIDATION_RUN_SOURCE_LABELS[selected.run_source]} · {selected.model_name}
                 </span>
-                <span className="truncate text-xs text-muted-foreground">{run.model_name}</span>
-                <ValidationStatusBadge status={run.status} />
-              </button>
-            ))}
-          </div>
-        </div>
+                <ValidationStatusBadge status={selected.status} />
+              </div>
+            </div>
+            <div className="flex w-full flex-col gap-1.5 lg:w-[360px]">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Review run
+              </span>
+              <Select value={selected.id} onValueChange={setSelectedId}>
+                <SelectTrigger className="h-10 w-full">
+                  <SelectValue placeholder="Select validation run" />
+                </SelectTrigger>
+                <SelectContent align="end" className="max-h-80">
+                  {ordered.map((run) => (
+                    <SelectItem key={run.id} value={run.id}>
+                      {validationRunLabel(run)} · {titleCase(run.status)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
       )}
       <ValidationDetail run={selected} />
     </div>

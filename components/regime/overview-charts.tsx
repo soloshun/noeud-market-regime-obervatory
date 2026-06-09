@@ -51,6 +51,13 @@ function shortDate(value: string) {
   });
 }
 
+function tooltipColor(item: unknown) {
+  if (item && typeof item === "object" && "color" in item && typeof item.color === "string") {
+    return item.color;
+  }
+  return "var(--muted-foreground)";
+}
+
 const OVERVIEW_TREND_AWARE_SERIES = [
   {
     key: "tenor_le_14d",
@@ -183,14 +190,18 @@ export function TrendAwareOverviewHistoryChart({
               content={
                 <ChartTooltipContent
                   labelFormatter={(value) => shortDate(String(value))}
-                  formatter={(value, name) => {
+                  formatter={(value, name, item) => {
                     const key = String(name);
                     return (
-                      <span className="flex w-full min-w-36 items-center justify-between gap-3">
+                      <span className="flex w-full min-w-40 items-center gap-2">
+                        <span
+                          className="size-2.5 shrink-0 rounded-[2px]"
+                          style={{ backgroundColor: tooltipColor(item) }}
+                        />
                         <span className="text-muted-foreground">
                           {labels[key] ?? key}
                         </span>
-                        <span className="font-mono font-medium text-foreground">
+                        <span className="ml-auto font-mono font-medium text-foreground">
                           {formatMultiplier(Number(value))}
                         </span>
                       </span>
