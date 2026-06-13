@@ -16,7 +16,7 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartToo
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate, formatPercent, formatVol } from "@/lib/format";
 import { MULTIPLIER_BUCKETS, TREND_ADJUSTMENT_LABELS } from "@/lib/regime";
-import type { BenchmarkResult } from "@/lib/types";
+import type { BenchmarkResult, ValidationRun } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 function Metric({
@@ -62,6 +62,35 @@ function tenorRows(results: BenchmarkResult[]) {
   }).filter((row) => row.count > 0);
 }
 
+function validationById(validations: ValidationRun[]) {
+  return new Map(validations.map((run) => [run.id, run]));
+}
+
+function rowsWithValidation(
+  results: BenchmarkResult[],
+  validations: ValidationRun[],
+) {
+  const byId = validationById(validations);
+  return results
+    .map((result) => ({
+      result,
+      validation: result.llm_validation_run_id
+        ? byId.get(result.llm_validation_run_id)
+        : undefined,
+    }))
+    .filter((row): row is { result: BenchmarkResult; validation: ValidationRun } =>
+      Boolean(row.validation),
+    );
+}
+
+function averageLift(rows: { result: BenchmarkResult }[]) {
+  return average(rows.map((row) => row.result.llm_lift));
+}
+
+function hitRate(rows: { result: BenchmarkResult }[]) {
+  return rows.filter((row) => row.result.direction_hit).length / Math.max(rows.length, 1);
+}
+
 function nextBenchmarkRun(now = new Date()) {
   const next = new Date(now);
   next.setUTCHours(9, 0, 0, 0);
@@ -86,8 +115,18 @@ function formatRunDate(value: Date) {
   }).format(value);
 }
 
-export function PerformanceLab({ results }: { results: BenchmarkResult[] }) {
+export function PerformanceLab({
+  results,
+  validations,
+}: {
+  results: BenchmarkResult[];
+  validations: ValidationRun[];
+}) {
   const nextRun = React.useMemo(() => nextBenchmarkRun(), []);
+  const joinedRows = React.useMemo(
+    () => rowsWithValidation(results, validations),
+    [results, validations],
+  );
   const sorted = React.useMemo(
     () => [...results].sort((a, b) => b.maturity_date.localeCompare(a.maturity_date)),
     [results],
@@ -102,6 +141,21 @@ export function PerformanceLab({ results }: { results: BenchmarkResult[] }) {
   const llmUndercoverage =
     results.filter((row) => row.llm_undercovered).length / Math.max(results.length, 1);
   const chartRows = tenorRows(results);
+  const memoryBackedRows = joinedRows.filter(
+    (row) => row.validation.prior_validation_context.item_count > 0,
+  );
+  const memorylessRows = joinedRows.filter(
+    (row) => row.validation.prior_validation_context.item_count === 0,
+  );
+  const frontTenorRows = joinedRows.filter(
+    (row) => row.result.tenor_key === "tenor_le_14d",
+  );
+  const avgSignalHorizon = average(
+    validations.map((run) => run.result.expected_signal_horizon_days),
+  );
+  const memoryCoverage =
+    validations.filter((run) => run.prior_validation_context.item_count > 0).length /
+    Math.max(validations.length, 1);
 
   return (
     <div className="space-y-4">
@@ -128,6 +182,44 @@ export function PerformanceLab({ results }: { results: BenchmarkResult[] }) {
       </Card>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <Metric
+          label="Memory Coverage"
+          value={formatPercent(memoryCoverage, 0)}
+          hint="Validation runs with prior context"
+        />
+        <Metric
+          label="Memory-Backed Lift"
+          value={
+            memoryBackedRows.length
+              ? `${averageLift(memoryBackedRows) >= 0 ? "+" : ""}${formatVol(averageLift(memoryBackedRows), 2)}`
+              : "--"
+          }
+          hint={`${memoryBackedRows.length} scored rows`}
+        />
+        <Metric
+          label="No-Memory Lift"
+          value={
+            memorylessRows.length
+              ? `${averageLift(memorylessRows) >= 0 ? "+" : ""}${formatVol(averageLift(memorylessRows), 2)}`
+              : "--"
+          }
+          hint={`${memorylessRows.length} scored rows`}
+        />
+        <Metric
+          label="Front Signal Hit"
+          value={
+            frontTenorRows.length ? formatPercent(hitRate(frontTenorRows), 0) : "--"
+          }
+          hint="Direction hit on ≤14d benchmark"
+        />
+        <Metric
+          label="Avg Signal Life"
+          value={`${Math.round(avgSignalHorizon)}d`}
+          hint="LLM expected horizon"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Metric label="Matured Scores" value={`${results.length}`} hint="Validation-run tenor windows scored" />
         <Metric label="Quant Error" value={formatVol(quantError, 2)} hint="Mean absolute vol error" />
         <Metric label="LLM Error" value={formatVol(llmError, 2)} hint="Mean absolute vol error after overlay" />
@@ -138,6 +230,93 @@ export function PerformanceLab({ results }: { results: BenchmarkResult[] }) {
         />
         <Metric label="Direction Hit" value={formatPercent(directionHitRate, 0)} hint="Increase/decrease/hold calls that matured correctly" />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Memory & Signal-Horizon Benchmark</CardTitle>
+          <CardDescription>
+            Joins matured benchmark rows to the validation run that produced the LLM overlay
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-0">
+          <div className="overflow-x-auto">
+            <Table className="min-w-[980px]">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="px-4">Pair</TableHead>
+                  <TableHead>Tenor</TableHead>
+                  <TableHead className="text-right">Signal Life</TableHead>
+                  <TableHead className="text-right">Memory Reads</TableHead>
+                  <TableHead className="text-right">Lift</TableHead>
+                  <TableHead>Direction Hit</TableHead>
+                  <TableHead>Valid Until</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {joinedRows.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      className="h-20 px-4 text-center text-sm text-muted-foreground"
+                    >
+                      No matured benchmark rows can be joined to validation memory yet.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  joinedRows
+                    .slice()
+                    .sort((a, b) =>
+                      b.result.maturity_date.localeCompare(a.result.maturity_date),
+                    )
+                    .slice(0, 12)
+                    .map(({ result, validation }) => (
+                      <TableRow key={`memory-${result.id}`}>
+                        <TableCell className="px-4 font-mono font-medium">
+                          {result.pair_code}
+                        </TableCell>
+                        <TableCell className="font-mono">
+                          {tenorLabel(result.tenor_key)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {validation.result.expected_signal_horizon_days}d
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {validation.prior_validation_context.item_count}
+                        </TableCell>
+                        <TableCell
+                          className={cn(
+                            "text-right font-mono",
+                            result.llm_lift >= 0
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-red-600 dark:text-red-400",
+                          )}
+                        >
+                          {result.llm_lift >= 0 ? "+" : ""}
+                          {formatVol(result.llm_lift, 2)}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={cn(
+                              "rounded border px-2 py-0.5 text-xs",
+                              result.direction_hit
+                                ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                : "border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300",
+                            )}
+                          >
+                            {result.direction_hit ? "Hit" : "Miss"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {formatDate(validation.result.expected_signal_valid_until)}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
       {results.length === 0 ? (
         <Card>

@@ -2,7 +2,12 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ExternalLinkIcon, SparklesIcon } from "lucide-react";
+import {
+  CalendarClockIcon,
+  ExternalLinkIcon,
+  HistoryIcon,
+  SparklesIcon,
+} from "lucide-react";
 
 import {
   ActionBadge,
@@ -207,6 +212,163 @@ export function TrendAwareAdjustmentCard({ run }: { run: ValidationRun }) {
   );
 }
 
+export function SignalHorizonCard({ run }: { run: ValidationRun }) {
+  const r = run.result;
+  const memory = run.prior_validation_context;
+  const memoryItems = memory.items ?? [];
+  const latestMemory = memoryItems[0];
+
+  return (
+    <Card className="border-foreground/10 bg-card/95">
+      <CardHeader>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <CalendarClockIcon className="size-4 text-muted-foreground" />
+              Signal Horizon
+            </CardTitle>
+            <CardDescription>
+              How long the current LLM overlay expects its market read to remain useful
+            </CardDescription>
+          </div>
+          <span className="rounded-md border bg-muted/40 px-2 py-0.5 font-mono text-xs">
+            {memory.item_count} prior reads
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Stat
+            label="Expected life"
+            value={`${formatNumber(r.expected_signal_horizon_days, 0)} days`}
+          />
+          <Stat
+            label="Valid until"
+            value={formatDate(r.expected_signal_valid_until)}
+          />
+          <Stat
+            label="Memory mode"
+            value={memory.memory_mode === "none" ? "No memory" : "Rolling 7d"}
+            mono={false}
+            hint={`${memory.lookback_days}d lookback`}
+          />
+        </div>
+        <div className="rounded-lg border bg-muted/20 p-3">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Horizon rationale
+          </div>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            {r.signal_horizon_rationale}
+          </p>
+        </div>
+        {latestMemory && (
+          <div className="rounded-lg border border-dashed p-3">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <HistoryIcon className="size-3.5" />
+              Latest prior read used
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+              <span className="font-mono">{formatDate(latestMemory.as_of_date)}</span>
+              {latestMemory.trend_adjustment_direction && (
+                <span className="rounded border bg-muted/40 px-1.5 py-0.5">
+                  {TREND_ADJUSTMENT_LABELS[latestMemory.trend_adjustment_direction]}
+                </span>
+              )}
+              {latestMemory.trend_adjustment_pct != null && (
+                <span className="font-mono text-muted-foreground">
+                  {latestMemory.trend_adjustment_pct > 0 ? "+" : ""}
+                  {formatNumber(latestMemory.trend_adjustment_pct * 100, 1)}%
+                </span>
+              )}
+            </div>
+            <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+              {latestMemory.trend_adjustment_rationale ||
+                latestMemory.trend_aware_validation_summary}
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PriorValidationMemoryCard({ run }: { run: ValidationRun }) {
+  const memory = run.prior_validation_context;
+  if (memory.item_count === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Rolling Memory Context</CardTitle>
+          <CardDescription>No prior validation context was used for this run</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Rolling Memory Context</CardTitle>
+        <CardDescription>
+          {memory.item_count} prior same-pair validation reads from the last{" "}
+          {memory.lookback_days} days
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="px-0">
+        <div className="overflow-x-auto">
+          <Table className="min-w-[920px]">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="px-4">As of</TableHead>
+                <TableHead>Direction</TableHead>
+                <TableHead className="text-right">Overlay</TableHead>
+                <TableHead className="text-right">Horizon</TableHead>
+                <TableHead>Prior rationale</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {memory.items.map((item) => (
+                <TableRow key={item.validation_run_id || item.as_of_date}>
+                  <TableCell className="px-4 font-mono text-xs">
+                    {formatDate(item.as_of_date)}
+                  </TableCell>
+                  <TableCell>
+                    {item.trend_adjustment_direction ? (
+                      TREND_ADJUSTMENT_LABELS[item.trend_adjustment_direction]
+                    ) : (
+                      <span className="text-muted-foreground">--</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-xs">
+                    {item.trend_adjustment_pct == null
+                      ? "--"
+                      : `${item.trend_adjustment_pct > 0 ? "+" : ""}${formatNumber(
+                          item.trend_adjustment_pct * 100,
+                          1,
+                        )}%`}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-xs">
+                    {item.expected_signal_horizon_days == null
+                      ? "--"
+                      : `${item.expected_signal_horizon_days}d`}
+                  </TableCell>
+                  <TableCell className="max-w-[420px]">
+                    <p className="line-clamp-2 text-xs text-muted-foreground">
+                      {item.trend_adjustment_rationale ||
+                        item.trend_aware_validation_summary ||
+                        item.validation_summary}
+                    </p>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ConfidenceBar({ value }: { value: number }) {
   return (
     <div className="flex items-center gap-2">
@@ -270,6 +432,17 @@ export function ValidationSummaryCard({
             label="Recommended action"
             value={<ActionBadge action={r.recommended_action} />}
             mono={false}
+          />
+          <Stat
+            label="Signal horizon"
+            value={`${formatNumber(r.expected_signal_horizon_days, 0)} days`}
+            hint={`Valid until ${formatDate(r.expected_signal_valid_until)}`}
+          />
+          <Stat
+            label="Memory used"
+            value={`${run.prior_validation_context.item_count} prior reads`}
+            mono={false}
+            hint={run.prior_validation_context.memory_mode}
           />
         </div>
         {href && (
@@ -370,6 +543,8 @@ function ValidationOutputLedger({ run }: { run: ValidationRun }) {
     ["External context read", r.external_context_regime_read],
     ["Market sentiment", MARKET_SENTIMENT_LABELS[r.market_sentiment]],
     ["Trend adjustment", TREND_ADJUSTMENT_LABELS[r.trend_adjustment_direction]],
+    ["Expected signal horizon", `${formatNumber(r.expected_signal_horizon_days, 0)} days`],
+    ["Signal valid until", formatDate(r.expected_signal_valid_until)],
     [
       "Adjustment confidence",
       `${formatNumber(r.trend_adjustment_confidence * 100, 0)}%`,
@@ -438,6 +613,8 @@ export function ValidationDetail({ run }: { run: ValidationRun }) {
   return (
     <div className="space-y-4">
       <ValidationSummaryCard run={run} />
+      <SignalHorizonCard run={run} />
+      <PriorValidationMemoryCard run={run} />
       <TrendAwareAdjustmentCard run={run} />
       <ValidationOutputLedger run={run} />
 

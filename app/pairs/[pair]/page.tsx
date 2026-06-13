@@ -13,6 +13,7 @@ import {
   TailRiskHistoryChart,
   TermStructureChart,
   TermStructureHistoryChart,
+  SignalHorizonHistoryChart,
   TrendAwareMultiplierOverlayChart,
   TrendAwareMultiplierHistoryChart,
   VolatilityHistoryChart,
@@ -25,6 +26,7 @@ import {
 } from "@/components/regime/pair-snapshot";
 import {
   PairValidations,
+  SignalHorizonCard,
   TrendAwareAdjustmentCard,
   ValidationSummaryCard,
 } from "@/components/regime/validation";
@@ -95,6 +97,7 @@ function PairDetail({ code }: { code: string }) {
 
             <TabsContent value="snapshot" className="space-y-4">
               <PairAuditSummary snapshot={snapshotQuery.data} />
+              {latestValidation && <SignalHorizonCard run={latestValidation} />}
               {latestValidation && <TrendAwareAdjustmentCard run={latestValidation} />}
               <PairSnapshotGrid snapshot={snapshotQuery.data} />
               {latestValidation && (
@@ -118,6 +121,12 @@ function PairDetail({ code }: { code: string }) {
                     validations={validations}
                     pair={snapshotQuery.data.display_pair}
                   />
+                  {validations.length > 0 && (
+                    <SignalHorizonHistoryChart
+                      validations={validations}
+                      pair={snapshotQuery.data.display_pair}
+                    />
+                  )}
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <SpotHistoryChart
                       observations={priceQuery.data ?? []}

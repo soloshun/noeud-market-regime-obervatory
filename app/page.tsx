@@ -9,6 +9,7 @@ import {
 import {
   OperationsMetricStrip,
   OperationsSupportPanels,
+  SignalHorizonOverviewPanel,
   TrendOverlayMatrix,
 } from "@/components/regime/operations-overview";
 import { PairsTable } from "@/components/regime/pairs-table";
@@ -46,6 +47,7 @@ export default function OverviewPage() {
         providerRuns={providerRunsQuery.data ?? []}
         asOf={query.data!.as_of_date}
       />
+      <SignalHorizonOverviewPanel validations={validationsQuery.data ?? []} />
       <TrendAwareOverviewHistoryChart
         histories={historiesQuery.data ?? {}}
         validations={validationRunsQuery.data ?? []}

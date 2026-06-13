@@ -22,6 +22,8 @@ import type {
   RegimeSnapshot,
   ResearchBrief,
   MarketSentiment,
+  PriorValidationContext,
+  PriorValidationContextItem,
   TrendAdjustmentDirection,
   TrendAwareMultiplierMap,
   ValidationResult,
@@ -170,6 +172,13 @@ function asString(value: unknown, fallback = "") {
   return typeof value === "string" && value ? value : fallback;
 }
 
+function addDaysIso(value: string, days: number) {
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return value;
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 function asArray<T = unknown>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
@@ -248,6 +257,79 @@ function trendAwareMapFromRecord(value: unknown, fallback = 0): TrendAwareMultip
     tenor_le_90d: asNumber(record.tenor_le_90d, fallback),
     tenor_le_180d: asNumber(record.tenor_le_180d, fallback),
     tenor_gt_180d: asNumber(record.tenor_gt_180d, fallback),
+  };
+}
+
+function priorValidationContextFromPayload(
+  value: unknown,
+  pairCode: string,
+  currentAsOfDate: string,
+): PriorValidationContext {
+  const record = asRecord(value);
+  const items = asArray<JsonRecord>(record.items).map<PriorValidationContextItem>((item) => {
+    const tenor = item.primary_trend_aware_tenor;
+    const marketSentiment = item.market_sentiment;
+    const direction = item.trend_adjustment_direction;
+    return {
+      validation_run_id: asString(item.validation_run_id),
+      as_of_date: asString(item.as_of_date),
+      created_at: asString(item.created_at),
+      run_source: asString(item.run_source, "unknown"),
+      status: asString(item.status),
+      confidence:
+        typeof item.confidence === "number" && Number.isFinite(item.confidence)
+          ? item.confidence
+          : null,
+      market_sentiment: isMarketSentiment(marketSentiment) ? marketSentiment : null,
+      trend_adjustment_direction: isTrendAdjustmentDirection(direction) ? direction : null,
+      trend_adjustment_pct:
+        typeof item.trend_adjustment_pct === "number" &&
+        Number.isFinite(item.trend_adjustment_pct)
+          ? item.trend_adjustment_pct
+          : null,
+      trend_adjustment_confidence:
+        typeof item.trend_adjustment_confidence === "number" &&
+        Number.isFinite(item.trend_adjustment_confidence)
+          ? item.trend_adjustment_confidence
+          : null,
+      primary_trend_aware_tenor: isTrendAwareTenor(tenor) ? tenor : null,
+      deterministic_primary_trend_multiplier:
+        typeof item.deterministic_primary_trend_multiplier === "number" &&
+        Number.isFinite(item.deterministic_primary_trend_multiplier)
+          ? item.deterministic_primary_trend_multiplier
+          : null,
+      recommended_primary_trend_multiplier:
+        typeof item.recommended_primary_trend_multiplier === "number" &&
+        Number.isFinite(item.recommended_primary_trend_multiplier)
+          ? item.recommended_primary_trend_multiplier
+          : null,
+      expected_signal_horizon_days:
+        typeof item.expected_signal_horizon_days === "number" &&
+        Number.isFinite(item.expected_signal_horizon_days)
+          ? item.expected_signal_horizon_days
+          : null,
+      expected_signal_valid_until: asString(item.expected_signal_valid_until) || null,
+      validation_summary: asString(item.validation_summary),
+      trend_aware_validation_summary: asString(item.trend_aware_validation_summary),
+      trend_adjustment_rationale: asString(item.trend_adjustment_rationale),
+      signal_horizon_rationale: asString(item.signal_horizon_rationale),
+      trend_driver_evidence: asArray<string>(item.trend_driver_evidence),
+      watch_items: asArray<string>(item.watch_items),
+      source_titles: asArray<JsonRecord>(item.source_titles).map((source) => ({
+        title: asString(source.title) || null,
+        source: asString(source.source) || null,
+        published_at: asString(source.published_at) || null,
+      })),
+    };
+  });
+
+  return {
+    memory_mode: asString(record.memory_mode, "none"),
+    pair_code: asString(record.pair_code, pairCode),
+    current_as_of_date: asString(record.current_as_of_date, currentAsOfDate),
+    lookback_days: asNumber(record.lookback_days, 0),
+    item_count: asNumber(record.item_count, items.length),
+    items,
   };
 }
 
@@ -402,6 +484,15 @@ function validationResultFromPayload(
       asString(record.rationale, row.rationale ?? ""),
     ),
     trend_driver_evidence: asArray<string>(record.trend_driver_evidence),
+    expected_signal_horizon_days: asNumber(record.expected_signal_horizon_days, 1),
+    expected_signal_valid_until: asString(
+      record.expected_signal_valid_until,
+      addDaysIso(row.as_of_date, 1),
+    ),
+    signal_horizon_rationale: asString(
+      record.signal_horizon_rationale,
+      "No signal horizon rationale was stored for this validation run.",
+    ),
     supporting_points: asArray<string>(record.supporting_points),
     contradicting_points: asArray<string>(record.contradicting_points),
     watch_items: asArray<string>(record.watch_items),
@@ -422,6 +513,11 @@ function validationFromRow(row: ValidationRow): ValidationRun {
   const result = validationResultFromPayload(output.validation_result, row, brief);
   const independent = asArray(output.independent_scorer_results).map((item) =>
     validationResultFromPayload(item, row, brief),
+  );
+  const priorContext = priorValidationContextFromPayload(
+    output.prior_validation_context,
+    row.pair_code,
+    row.as_of_date,
   );
 
   return {
@@ -453,6 +549,7 @@ function validationFromRow(row: ValidationRow): ValidationRun {
       : null,
     created_at: row.created_at,
     result,
+    prior_validation_context: priorContext,
     independent_scorer_results: independent,
     raw_model_responses: asArray(output.raw_model_responses).map(callRecordFromPayload),
   };

@@ -31,6 +31,7 @@ import type {
   BenchmarkResult,
   CompositeSignal,
   LLMCallRecord,
+  MarketSentiment,
   ProviderRun,
   RawPriceObservation,
   RecommendedAction,
@@ -38,6 +39,7 @@ import type {
   RegimeLabel,
   RegimeSnapshot,
   ResearchEvidenceItem,
+  TrendAdjustmentDirection,
   TrendSignal,
   ValidationResult,
   ValidationRun,
@@ -395,7 +397,7 @@ function buildValidationRun(snapshot: RegimeSnapshot): ValidationRun {
   };
   const evidence = evidenceFor(code, rng);
   const deterministicMultipliers = snapshot.dynamic_trend_aware_regime_multiplier;
-  const sentiment =
+  const sentiment: MarketSentiment =
     regime === "CALM" || regime === "NORMAL"
       ? "volatility_dampening"
       : regime === "CRISIS" || regime === "STRESSED"
@@ -407,7 +409,7 @@ function buildValidationRun(snapshot: RegimeSnapshot): ValidationRun {
       : sentiment === "volatility_amplifying"
         ? 0.08
         : 0.0;
-  const adjustmentDirection =
+  const adjustmentDirection: TrendAdjustmentDirection =
     adjustmentPct > 0 ? "increase" : adjustmentPct < 0 ? "decrease" : "hold";
   const recommendedMultipliers = {
     tenor_le_14d: Number((deterministicMultipliers.tenor_le_14d * (1 + adjustmentPct)).toFixed(3)),
@@ -417,6 +419,9 @@ function buildValidationRun(snapshot: RegimeSnapshot): ValidationRun {
     tenor_le_180d: Number((deterministicMultipliers.tenor_le_180d * (1 + adjustmentPct)).toFixed(3)),
     tenor_gt_180d: Number((deterministicMultipliers.tenor_gt_180d * (1 + adjustmentPct)).toFixed(3)),
   };
+  const horizonDays = 2 + Math.floor(rng() * 5);
+  const validUntil = new Date(`${snapshot.as_of_date}T00:00:00Z`);
+  validUntil.setUTCDate(validUntil.getUTCDate() + horizonDays);
 
   const brief = {
     pair: code,
@@ -488,6 +493,10 @@ function buildValidationRun(snapshot: RegimeSnapshot): ValidationRun {
       `${cbank[quote] ?? "Central-bank"} policy/liquidity context`,
       "Importer demand and offshore positioning tone",
     ],
+    expected_signal_horizon_days: horizonDays,
+    expected_signal_valid_until: validUntil.toISOString().slice(0, 10),
+    signal_horizon_rationale:
+      "The cited policy and liquidity drivers are expected to remain relevant for a few market sessions before a fresh news read is needed.",
     supporting_points: [
       `Realized vol acceleration of ${snapshot.current_volatility_readings.accel_vs_252d.toFixed(2)}x is consistent with the ${regime} band.`,
       `${cbank[quote] ?? "Central-bank"} guidance does not contradict the current read.`,
@@ -505,6 +514,40 @@ function buildValidationRun(snapshot: RegimeSnapshot): ValidationRun {
     prompt_version: "market-regime-validation-v1",
     research_brief: brief,
   };
+
+  const priorMemoryItems = [1, 2, 3].map((offset) => {
+    const priorDate = new Date(`${snapshot.as_of_date}T00:00:00Z`);
+    priorDate.setUTCDate(priorDate.getUTCDate() - offset);
+    const priorDateKey = priorDate.toISOString().slice(0, 10);
+    return {
+      validation_run_id: `val_${code.toLowerCase()}_${priorDateKey}`,
+      as_of_date: priorDateKey,
+      created_at: `${priorDateKey}T07:42:00Z`,
+      run_source: "scheduled",
+      status,
+      confidence: Number((confidence - offset * 0.02).toFixed(2)),
+      market_sentiment: sentiment,
+      trend_adjustment_direction: adjustmentDirection,
+      trend_adjustment_pct: adjustmentPct,
+      trend_adjustment_confidence: Number((confidence - 0.08).toFixed(2)),
+      primary_trend_aware_tenor: "tenor_le_30d" as const,
+      deterministic_primary_trend_multiplier: deterministicMultipliers.tenor_le_30d,
+      recommended_primary_trend_multiplier: recommendedMultipliers.tenor_le_30d,
+      expected_signal_horizon_days: Math.max(1, horizonDays - offset + 1),
+      expected_signal_valid_until: result.expected_signal_valid_until,
+      validation_summary: result.validation_summary,
+      trend_aware_validation_summary: result.trend_aware_validation_summary,
+      trend_adjustment_rationale: result.trend_adjustment_rationale,
+      signal_horizon_rationale: result.signal_horizon_rationale,
+      trend_driver_evidence: result.trend_driver_evidence,
+      watch_items: result.watch_items,
+      source_titles: evidence.slice(0, 2).map((item) => ({
+        title: item.title,
+        source: item.source,
+        published_at: item.published_at,
+      })),
+    };
+  });
 
   const independent: ValidationResult[] = SCORER_MODELS.map((model, i) => ({
     ...result,
@@ -562,6 +605,14 @@ function buildValidationRun(snapshot: RegimeSnapshot): ValidationRun {
     llm_recommended_trend_aware_multipliers: result.llm_recommended_trend_aware_multipliers,
     created_at: `${snapshot.as_of_date}T07:42:00Z`,
     result,
+    prior_validation_context: {
+      memory_mode: "rolling_7d_validation_memory_v1",
+      pair_code: code,
+      current_as_of_date: snapshot.as_of_date,
+      lookback_days: 7,
+      item_count: priorMemoryItems.length,
+      items: priorMemoryItems,
+    },
     independent_scorer_results: independent,
     raw_model_responses: raw,
   };
@@ -783,7 +834,12 @@ export function getBenchmarkResults(): BenchmarkResult[] {
         quant_undercovered: realized > quantImplied,
         llm_undercovered: realized > llmImplied,
         observation_count: Math.max(2, Math.round(horizon * 0.72)),
-        scoring_notes: { fixture: true },
+        scoring_notes: {
+          fixture: true,
+          expected_signal_horizon_days: validation.result.expected_signal_horizon_days,
+          expected_signal_valid_until: validation.result.expected_signal_valid_until,
+          memory_item_count: validation.prior_validation_context.item_count,
+        },
         created_at: `${AS_OF}T09:00:00Z`,
         updated_at: `${AS_OF}T09:00:00Z`,
       } satisfies BenchmarkResult;

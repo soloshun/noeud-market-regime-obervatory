@@ -3,10 +3,12 @@
 import Link from "next/link";
 import {
   AlertTriangleIcon,
+  CalendarClockIcon,
   CheckCircle2Icon,
   DatabaseIcon,
   ExternalLinkIcon,
   GaugeIcon,
+  HistoryIcon,
   ShieldCheckIcon,
   SparklesIcon,
 } from "lucide-react";
@@ -256,6 +258,12 @@ export function OperationsMetricStrip({
   const avgTrendAdjustment =
     trendAdjustments.reduce((sum, value) => sum + value, 0) /
     Math.max(trendAdjustments.length, 1);
+  const horizonDays = validations
+    .map((run) => run.result.expected_signal_horizon_days)
+    .filter((value) => Number.isFinite(value));
+  const avgHorizon =
+    horizonDays.reduce((sum, value) => sum + value, 0) /
+    Math.max(horizonDays.length, 1);
   const failedRuns = providerRuns.filter(
     (run) => !["success", "succeeded", "skipped"].includes(run.status),
   );
@@ -281,7 +289,7 @@ export function OperationsMetricStrip({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-7">
         <Metric
           icon={GaugeIcon}
           label="Latest Snapshot"
@@ -319,6 +327,12 @@ export function OperationsMetricStrip({
           hint="Avg LLM multiplier adjustment"
         />
         <Metric
+          icon={CalendarClockIcon}
+          label="Signal Horizon"
+          value={`${formatNumber(avgHorizon, 1)}d`}
+          hint="Avg LLM overlay life"
+        />
+        <Metric
           icon={CheckCircle2Icon}
           label="Last Provider Run"
           value={lastRun?.status ?? "--"}
@@ -336,6 +350,97 @@ export function OperationsMetricStrip({
           need review.
         </div>
       )}
+    </section>
+  );
+}
+
+export function SignalHorizonOverviewPanel({
+  validations,
+}: {
+  validations: ValidationRun[];
+}) {
+  const rows = [...validations].sort((a, b) => {
+    const left = a.result.expected_signal_horizon_days;
+    const right = b.result.expected_signal_horizon_days;
+    return right - left;
+  });
+  const avgMemory =
+    rows.reduce((sum, run) => sum + run.prior_validation_context.item_count, 0) /
+    Math.max(rows.length, 1);
+  const memoryBacked = rows.filter(
+    (run) => run.prior_validation_context.item_count > 0,
+  ).length;
+
+  return (
+    <section className="rounded-lg border bg-card/95">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b bg-muted/20 px-4 py-3">
+        <div>
+          <h3 className="font-mono text-sm font-semibold uppercase tracking-wide">
+            LLM Signal Horizon & Rolling Memory
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Latest expected overlay life and prior validation context used before today&apos;s verdict
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 text-xs">
+          <span className="rounded border bg-background px-2 py-0.5 font-mono">
+            {memoryBacked}/{rows.length} memory-backed
+          </span>
+          <span className="rounded border bg-background px-2 py-0.5 font-mono">
+            avg {formatNumber(avgMemory, 1)} prior reads
+          </span>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 divide-y lg:grid-cols-3 lg:divide-x lg:divide-y-0">
+        {rows.map((run) => (
+          <Link
+            key={run.id}
+            href={`/pairs/${run.pair_code}?tab=validation&run=${run.id}`}
+            className="block p-4 transition-colors hover:bg-muted/30"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="font-mono text-sm font-semibold">
+                  {run.result.display_pair}
+                </div>
+                <div className="mt-0.5 text-xs text-muted-foreground">
+                  {MARKET_SENTIMENT_LABELS[run.result.market_sentiment]}
+                </div>
+              </div>
+              <ValidationStatusBadge status={run.status} />
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="rounded-md border bg-muted/20 p-3">
+                <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <CalendarClockIcon className="size-3.5" />
+                  Horizon
+                </div>
+                <div className="mt-1 font-mono text-xl font-semibold tabular-nums">
+                  {formatNumber(run.result.expected_signal_horizon_days, 0)}d
+                </div>
+                <div className="mt-0.5 text-[11px] text-muted-foreground">
+                  until {formatDate(run.result.expected_signal_valid_until)}
+                </div>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-3">
+                <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <HistoryIcon className="size-3.5" />
+                  Memory
+                </div>
+                <div className="mt-1 font-mono text-xl font-semibold tabular-nums">
+                  {run.prior_validation_context.item_count}
+                </div>
+                <div className="mt-0.5 text-[11px] text-muted-foreground">
+                  prior reads used
+                </div>
+              </div>
+            </div>
+            <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+              {run.result.signal_horizon_rationale}
+            </p>
+          </Link>
+        ))}
+      </div>
     </section>
   );
 }

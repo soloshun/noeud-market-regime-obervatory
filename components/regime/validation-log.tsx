@@ -173,6 +173,26 @@ export function ValidationLog({ runs }: { runs: ValidationRun[] }) {
         ),
       },
       {
+        id: "signal_horizon",
+        accessorFn: (row) => row.result.expected_signal_horizon_days,
+        header: ({ column }) => <SortHeader label="Horizon" sorted={column.getIsSorted()} onClick={column.getToggleSortingHandler()!} />,
+        cell: ({ row }) => (
+          <span className="font-mono text-xs">
+            {row.original.result.expected_signal_horizon_days}d
+          </span>
+        ),
+      },
+      {
+        id: "memory_count",
+        accessorFn: (row) => row.prior_validation_context.item_count,
+        header: ({ column }) => <SortHeader label="Memory" sorted={column.getIsSorted()} onClick={column.getToggleSortingHandler()!} />,
+        cell: ({ row }) => (
+          <span className="font-mono text-xs">
+            {row.original.prior_validation_context.item_count}
+          </span>
+        ),
+      },
+      {
         id: "action",
         header: () => <span className="text-xs font-medium">Action</span>,
         enableSorting: false,

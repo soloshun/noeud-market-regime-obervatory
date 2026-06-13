@@ -53,8 +53,10 @@ const METRICS = [
 
 const PIPELINE = [
   { step: "1 · Retrieval", body: "perplexity/sonar gathers current market context (macro, central bank, currency-specific) and returns cited evidence." },
-  { step: "2 · Scoring", body: "One or more scorer models independently judge whether external context supports the deterministic read over the shared research brief." },
-  { step: "3 · Aggregation", body: "anthropic/claude-sonnet-4.5 aggregates the views using the research brief and citations as the factual anchor — not a majority vote." },
+  { step: "2 · Memory", body: "The scorer receives compact same-pair validation context from the previous seven calendar days so today's view can react to what it said earlier." },
+  { step: "3 · Scoring", body: "One or more scorer models independently judge whether external context supports the deterministic trend-aware multiplier read over the shared research brief and prior context." },
+  { step: "4 · Horizon", body: "The final JSON includes how many days the LLM believes today's overlay remains useful before a fresh evidence read is required." },
+  { step: "5 · Aggregation", body: "anthropic/claude-sonnet-4.5 aggregates the views using the research brief and citations as the factual anchor — not a majority vote." },
 ];
 
 const BENCHMARK_METRICS = [
@@ -77,6 +79,14 @@ const BENCHMARK_METRICS = [
   {
     name: "Direction hit",
     body: "Checks whether the LLM's increase, decrease, or hold call agreed with the matured realized volatility after a 5% tolerance band.",
+  },
+  {
+    name: "Memory-backed lift",
+    body: "Compares benchmark lift for validations that used prior same-pair context. This helps test whether rolling memory improves the overlay versus isolated daily reads.",
+  },
+  {
+    name: "Signal horizon",
+    body: "The LLM's expected useful life for today's overlay. The lab shows average signal life and front-tenor hit rates so the team can monitor whether short-lived calls mature correctly.",
   },
   {
     name: "Undercoverage",
@@ -170,7 +180,7 @@ export default function HelpPage() {
                 The intelligence layer validates the trend-aware multiplier ladder. It does not overwrite the deterministic snapshot.
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
               {PIPELINE.map((p) => (
                 <div key={p.step} className="rounded-lg border p-4">
                   <div className="text-sm font-semibold">{p.step}</div>

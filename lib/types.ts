@@ -249,6 +249,44 @@ export type LLMCallRecord = {
   reasoning_content: string | null;
 };
 
+export type PriorValidationContextItem = {
+  validation_run_id: string;
+  as_of_date: string;
+  created_at: string;
+  run_source: string;
+  status: string;
+  confidence: number | null;
+  market_sentiment: MarketSentiment | null;
+  trend_adjustment_direction: TrendAdjustmentDirection | null;
+  trend_adjustment_pct: number | null;
+  trend_adjustment_confidence: number | null;
+  primary_trend_aware_tenor: keyof TrendAwareMultiplierMap | null;
+  deterministic_primary_trend_multiplier: number | null;
+  recommended_primary_trend_multiplier: number | null;
+  expected_signal_horizon_days: number | null;
+  expected_signal_valid_until: string | null;
+  validation_summary: string;
+  trend_aware_validation_summary: string;
+  trend_adjustment_rationale: string;
+  signal_horizon_rationale: string;
+  trend_driver_evidence: string[];
+  watch_items: string[];
+  source_titles: {
+    title: string | null;
+    source: string | null;
+    published_at: string | null;
+  }[];
+};
+
+export type PriorValidationContext = {
+  memory_mode: string;
+  pair_code: string;
+  current_as_of_date: string;
+  lookback_days: number;
+  item_count: number;
+  items: PriorValidationContextItem[];
+};
+
 export type ValidationResult = {
   pair: string;
   display_pair: string;
@@ -271,6 +309,9 @@ export type ValidationResult = {
   trend_adjustment_confidence: number;
   trend_adjustment_rationale: string;
   trend_driver_evidence: string[];
+  expected_signal_horizon_days: number;
+  expected_signal_valid_until: string;
+  signal_horizon_rationale: string;
   supporting_points: string[];
   contradicting_points: string[];
   watch_items: string[];
@@ -302,6 +343,7 @@ export type ValidationRun = {
   llm_recommended_trend_aware_multipliers: TrendAwareMultiplierMap | null;
   created_at: string;
   result: ValidationResult;
+  prior_validation_context: PriorValidationContext;
   independent_scorer_results: ValidationResult[];
   raw_model_responses: LLMCallRecord[];
 };
