@@ -505,71 +505,94 @@ export function SignalHorizonHistoryChart({
       validUntil: run.result.expected_signal_valid_until,
     }));
   const dot = data.length < 2 ? { r: 3 } : false;
+  const latest = data.at(-1);
+  const memoryDomainMax = Math.max(7, ...data.map((point) => point.memory + 1));
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>LLM Signal Horizon & Memory</CardTitle>
-        <CardDescription>
-          {pair} predicted overlay life versus prior validation context used by the scorer
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ChartContainer
-          config={{
-            horizon: { label: "Expected Horizon Days", color: "var(--chart-1)" },
-            memory: { label: "Prior Reads Used", color: "var(--chart-2)" },
-          }}
-          className="aspect-auto h-[240px] w-full"
-        >
-          <LineChart data={data} margin={{ top: 8, right: 16, left: 4, bottom: 0 }}>
-            <CartesianGrid vertical={false} />
-            <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={40} fontSize={11} tickFormatter={shortDate} />
-            <YAxis tickLine={false} axisLine={false} width={36} domain={[0, 14]} fontSize={11} tickFormatter={(v) => `${formatNumber(Number(v), 0)}d`} />
-            <ReferenceLine y={7} stroke="var(--muted-foreground)" strokeDasharray="3 3" strokeOpacity={0.35} />
-            <ChartLegend content={<ChartLegendContent />} />
-            <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  labelFormatter={(value) => shortDate(String(value))}
-                  formatter={(value, name, item) => {
-                    const labels: Record<string, string> = {
-                      horizon: "Expected horizon",
-                      memory: "Prior reads used",
-                    };
-                    const suffix = String(name) === "horizon" ? "d" : "";
-                    return (
-                      <span className="flex w-full min-w-44 items-center gap-2">
-                        <span
-                          className="size-2.5 shrink-0 rounded-[2px]"
-                          style={{ backgroundColor: tooltipColor(item) }}
-                        />
-                        <span className="text-muted-foreground">
-                          {labels[String(name)] ?? String(name)}
-                        </span>
-                        <span className="ml-auto font-mono font-medium text-foreground">
-                          {formatNumber(Number(value), 0)}
-                          {suffix}
-                        </span>
-                      </span>
-                    );
-                  }}
-                />
-              }
-            />
-            <Line dataKey="horizon" type="monotone" stroke="var(--color-horizon)" strokeWidth={2.25} dot={dot} />
-            <Line dataKey="memory" type="monotone" stroke="var(--color-memory)" strokeWidth={2} strokeDasharray="5 4" dot={dot} />
-          </LineChart>
-        </ChartContainer>
-        {data.at(-1) && (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Latest read is valid until {formatDate(data.at(-1)!.validUntil)} with{" "}
-            {data.at(-1)!.memory} prior validation
-            {data.at(-1)!.memory === 1 ? "" : "s"} in context.
-          </p>
-        )}
-      </CardContent>
-    </Card>
+    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle>Expected Signal Life</CardTitle>
+          <CardDescription>
+            {pair} LLM-declared overlay validity window in calendar days
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer
+            config={{
+              horizon: { label: "Expected Horizon Days", color: "var(--chart-1)" },
+            }}
+            className="aspect-auto h-[240px] w-full"
+          >
+            <LineChart data={data} margin={{ top: 8, right: 16, left: 4, bottom: 0 }}>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={40} fontSize={11} tickFormatter={shortDate} />
+              <YAxis tickLine={false} axisLine={false} width={36} domain={[0, 14]} fontSize={11} tickFormatter={(v) => `${formatNumber(Number(v), 0)}d`} />
+              <ReferenceLine y={7} stroke="var(--muted-foreground)" strokeDasharray="3 3" strokeOpacity={0.35} />
+              <ChartLegend content={<ChartLegendContent />} />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={(value) => shortDate(String(value))}
+                    formatter={legendTooltipFormatter(
+                      { horizon: "Expected horizon" },
+                      (value) => `${formatNumber(value, 0)}d`,
+                    )}
+                  />
+                }
+              />
+              <Line dataKey="horizon" type="monotone" stroke="var(--color-horizon)" strokeWidth={2.25} dot={dot} />
+            </LineChart>
+          </ChartContainer>
+          {latest && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Latest overlay is valid until {formatDate(latest.validUntil)}.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Prior Reads Used</CardTitle>
+          <CardDescription>
+            Same-pair validation memories injected into each scorer prompt
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer
+            config={{
+              memory: { label: "Prior Reads Used", color: "var(--chart-2)" },
+            }}
+            className="aspect-auto h-[240px] w-full"
+          >
+            <BarChart data={data} margin={{ top: 8, right: 16, left: 4, bottom: 0 }}>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={40} fontSize={11} tickFormatter={shortDate} />
+              <YAxis tickLine={false} axisLine={false} width={36} domain={[0, memoryDomainMax]} allowDecimals={false} fontSize={11} tickFormatter={(v) => `${formatNumber(Number(v), 0)}`} />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={(value) => shortDate(String(value))}
+                    formatter={legendTooltipFormatter(
+                      { memory: "Prior reads used" },
+                      (value) => `${formatNumber(value, 0)}`,
+                    )}
+                  />
+                }
+              />
+              <Bar dataKey="memory" fill="var(--color-memory)" radius={4} />
+            </BarChart>
+          </ChartContainer>
+          {latest && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Latest scorer used {latest.memory} prior validation
+              {latest.memory === 1 ? "" : "s"} in context.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

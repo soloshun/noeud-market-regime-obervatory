@@ -6,6 +6,7 @@ import {
   getLatestSnapshots as getMockLatestSnapshots,
   getPrices as getMockPrices,
   getProviderRuns as getMockProviderRuns,
+  getSignalHorizonBenchmarkResults as getMockSignalHorizonBenchmarkResults,
   getSnapshot as getMockSnapshot,
   getSupportedPairs as getMockSupportedPairs,
   getValidation as getMockValidation,
@@ -24,6 +25,7 @@ import type {
   MarketSentiment,
   PriorValidationContext,
   PriorValidationContextItem,
+  SignalHorizonBenchmarkResult,
   TrendAdjustmentDirection,
   TrendAwareMultiplierMap,
   ValidationResult,
@@ -87,6 +89,7 @@ type ValidationRow = {
 };
 
 type BenchmarkRow = BenchmarkResult;
+type SignalHorizonBenchmarkRow = SignalHorizonBenchmarkResult;
 
 type SupabaseConfig = {
   url: string;
@@ -730,5 +733,25 @@ export async function getBenchmarkResults(): Promise<BenchmarkResult[]> {
       }));
     },
     () => getMockBenchmarkResults(),
+  );
+}
+
+export async function getSignalHorizonBenchmarkResults(): Promise<SignalHorizonBenchmarkResult[]> {
+  return withFallback(
+    async () => {
+      const rows = await supabaseGet<SignalHorizonBenchmarkRow>("signal_horizon_benchmark_results", {
+        select: "*",
+        order: "maturity_date.desc",
+        limit: 1000,
+      });
+      return rows.map((row) => ({
+        ...row,
+        tenor_key: isTrendAwareTenor(row.tenor_key) ? row.tenor_key : "tenor_le_30d",
+        llm_direction: isTrendAdjustmentDirection(row.llm_direction)
+          ? row.llm_direction
+          : "insufficient_evidence",
+      }));
+    },
+    () => getMockSignalHorizonBenchmarkResults(),
   );
 }

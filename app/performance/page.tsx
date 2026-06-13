@@ -3,13 +3,18 @@
 import { EmptyState, SectionTitle } from "@/components/regime/primitives";
 import { PerformanceLab } from "@/components/regime/performance-lab";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useBenchmarkResults, useValidationRuns } from "@/hooks/use-regime";
+import {
+  useBenchmarkResults,
+  useSignalHorizonBenchmarkResults,
+  useValidationRuns,
+} from "@/hooks/use-regime";
 
 export default function PerformancePage() {
   const query = useBenchmarkResults();
+  const signalHorizonQuery = useSignalHorizonBenchmarkResults();
   const validationsQuery = useValidationRuns();
-  const isLoading = query.isLoading || validationsQuery.isLoading;
-  const isError = query.isError || validationsQuery.isError;
+  const isLoading = query.isLoading || signalHorizonQuery.isLoading || validationsQuery.isLoading;
+  const isError = query.isError || signalHorizonQuery.isError || validationsQuery.isError;
 
   return (
     <>
@@ -31,6 +36,7 @@ export default function PerformancePage() {
       ) : (
         <PerformanceLab
           results={query.data ?? []}
+          signalHorizonResults={signalHorizonQuery.data ?? []}
           validations={validationsQuery.data ?? []}
         />
       )}

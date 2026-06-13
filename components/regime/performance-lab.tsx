@@ -16,7 +16,11 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartToo
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate, formatPercent, formatVol } from "@/lib/format";
 import { MULTIPLIER_BUCKETS, TREND_ADJUSTMENT_LABELS } from "@/lib/regime";
-import type { BenchmarkResult, ValidationRun } from "@/lib/types";
+import type {
+  BenchmarkResult,
+  SignalHorizonBenchmarkResult,
+  ValidationRun,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 function Metric({
@@ -91,6 +95,19 @@ function hitRate(rows: { result: BenchmarkResult }[]) {
   return rows.filter((row) => row.result.direction_hit).length / Math.max(rows.length, 1);
 }
 
+function signalHorizonTenorRows(results: SignalHorizonBenchmarkResult[]) {
+  return MULTIPLIER_BUCKETS.map((bucket) => {
+    const rows = results.filter((result) => result.tenor_key === bucket.key);
+    return {
+      tenor: bucket.label,
+      lift: average(rows.map((row) => row.llm_lift)),
+      validRate:
+        rows.filter((row) => row.signal_still_valid).length / Math.max(rows.length, 1),
+      count: rows.length,
+    };
+  }).filter((row) => row.count > 0);
+}
+
 function nextBenchmarkRun(now = new Date()) {
   const next = new Date(now);
   next.setUTCHours(9, 0, 0, 0);
@@ -117,9 +134,11 @@ function formatRunDate(value: Date) {
 
 export function PerformanceLab({
   results,
+  signalHorizonResults,
   validations,
 }: {
   results: BenchmarkResult[];
+  signalHorizonResults: SignalHorizonBenchmarkResult[];
   validations: ValidationRun[];
 }) {
   const nextRun = React.useMemo(() => nextBenchmarkRun(), []);
@@ -141,6 +160,15 @@ export function PerformanceLab({
   const llmUndercoverage =
     results.filter((row) => row.llm_undercovered).length / Math.max(results.length, 1);
   const chartRows = tenorRows(results);
+  const signalHorizonRows = signalHorizonTenorRows(signalHorizonResults);
+  const signalHorizonLift = average(signalHorizonResults.map((row) => row.llm_lift));
+  const signalStillValidRate =
+    signalHorizonResults.filter((row) => row.signal_still_valid).length /
+    Math.max(signalHorizonResults.length, 1);
+  const signalDirectionHitRate =
+    signalHorizonResults.filter((row) => row.direction_hit).length /
+    Math.max(signalHorizonResults.length, 1);
+  const signalMemoryRows = signalHorizonResults.filter((row) => row.memory_item_count > 0);
   const memoryBackedRows = joinedRows.filter(
     (row) => row.validation.prior_validation_context.item_count > 0,
   );
@@ -230,6 +258,167 @@ export function PerformanceLab({
         />
         <Metric label="Direction Hit" value={formatPercent(directionHitRate, 0)} hint="Increase/decrease/hold calls that matured correctly" />
       </div>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-base font-semibold">Declared Signal-Life Benchmark</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Scores the LLM&apos;s own expected-valid-until window across every trend-aware tenor. The horizon is one overlay-life claim; the table decomposes its performance by tenor.
+          </p>
+        </div>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <Metric
+              label="Matured Horizon Rows"
+              value={`${signalHorizonResults.length}`}
+              hint="Validation-tenor rows scored by declared signal life"
+            />
+            <Metric
+              label="Signal Still Valid"
+              value={signalHorizonResults.length ? formatPercent(signalStillValidRate, 0) : "--"}
+              hint="LLM error was no worse than quant-only"
+            />
+            <Metric
+              label="Signal Lift"
+              value={
+                signalHorizonResults.length
+                  ? `${signalHorizonLift >= 0 ? "+" : ""}${formatVol(signalHorizonLift, 2)}`
+                  : "--"
+              }
+              hint="Positive means the overlay helped during its declared life"
+            />
+            <Metric
+              label="Signal Direction Hit"
+              value={signalHorizonResults.length ? formatPercent(signalDirectionHitRate, 0) : "--"}
+              hint="Increase/decrease/hold call over the declared horizon"
+            />
+            <Metric
+              label="Memory-Backed Signals"
+              value={signalHorizonResults.length ? formatPercent(signalMemoryRows.length / signalHorizonResults.length, 0) : "--"}
+              hint={`${signalMemoryRows.length} scored rows used prior context`}
+            />
+          </div>
+
+          {signalHorizonResults.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
+              No declared signal-life rows have matured yet. The signal-horizon evaluator will publish rows after each LLM `valid until` date has stored market prices.
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Signal Lift by Tenor</CardTitle>
+                    <CardDescription>Positive bars mean the LLM overlay beat quant-only during its declared life</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer
+                      config={{ lift: { label: "Signal Lift", color: "var(--chart-2)" } }}
+                      className="aspect-auto h-[260px] w-full"
+                    >
+                      <BarChart data={signalHorizonRows} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
+                        <CartesianGrid vertical={false} />
+                        <XAxis dataKey="tenor" tickLine={false} axisLine={false} fontSize={11} />
+                        <YAxis tickLine={false} axisLine={false} width={44} fontSize={11} tickFormatter={(v) => formatVol(Number(v), 1)} />
+                        <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatVol(Number(value), 2)} />} />
+                        <Bar dataKey="lift" radius={4}>
+                          {signalHorizonRows.map((row) => (
+                            <Cell
+                              key={row.tenor}
+                              fill={row.lift >= 0 ? "var(--chart-2)" : "var(--chart-5)"}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Signal Validity by Tenor</CardTitle>
+                    <CardDescription>Share of matured rows where the LLM overlay was at least as accurate as quant-only</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer
+                      config={{ validRate: { label: "Still Valid", color: "var(--chart-1)" } }}
+                      className="aspect-auto h-[260px] w-full"
+                    >
+                      <BarChart data={signalHorizonRows} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
+                        <CartesianGrid vertical={false} />
+                        <XAxis dataKey="tenor" tickLine={false} axisLine={false} fontSize={11} />
+                        <YAxis domain={[0, 1]} tickLine={false} axisLine={false} width={44} fontSize={11} tickFormatter={(v) => formatPercent(Number(v), 0)} />
+                        <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatPercent(Number(value), 0)} />} />
+                        <Bar dataKey="validRate" fill="var(--color-validRate)" radius={4} />
+                      </BarChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border">
+                <Table className="min-w-[1220px]">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="px-4">Pair</TableHead>
+                      <TableHead>Tenor</TableHead>
+                      <TableHead>As Of</TableHead>
+                      <TableHead>Valid Until</TableHead>
+                      <TableHead className="text-right">Life</TableHead>
+                      <TableHead className="text-right">Quant Imp Vol</TableHead>
+                      <TableHead className="text-right">LLM Imp Vol</TableHead>
+                      <TableHead className="text-right">Realized Vol</TableHead>
+                      <TableHead className="text-right">Lift</TableHead>
+                      <TableHead>Signal</TableHead>
+                      <TableHead className="text-right">Memory</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {signalHorizonResults
+                      .slice()
+                      .sort((a, b) => b.maturity_date.localeCompare(a.maturity_date))
+                      .slice(0, 18)
+                      .map((row) => (
+                        <TableRow key={`signal-${row.id}`}>
+                          <TableCell className="px-4 font-mono font-medium">{row.pair_code}</TableCell>
+                          <TableCell className="font-mono">{tenorLabel(row.tenor_key)}</TableCell>
+                          <TableCell className="text-muted-foreground">{formatDate(row.as_of_date)}</TableCell>
+                          <TableCell className="text-muted-foreground">{formatDate(row.expected_signal_valid_until)}</TableCell>
+                          <TableCell className="text-right font-mono">{row.expected_signal_horizon_days}d</TableCell>
+                          <TableCell className="text-right font-mono">{formatVol(row.quant_implied_vol, 1)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatVol(row.llm_implied_vol, 1)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatVol(row.realized_vol, 1)}</TableCell>
+                          <TableCell
+                            className={cn(
+                              "text-right font-mono",
+                              row.llm_lift >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400",
+                            )}
+                          >
+                            {row.llm_lift >= 0 ? "+" : ""}
+                            {formatVol(row.llm_lift, 2)}
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className={cn(
+                                "rounded border px-2 py-0.5 text-xs",
+                                row.signal_still_valid
+                                  ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                  : "border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300",
+                              )}
+                            >
+                              {row.signal_still_valid ? "Valid" : "Failed"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right font-mono">{row.memory_item_count}</TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </div>
+      </section>
 
       <Card>
         <CardHeader>

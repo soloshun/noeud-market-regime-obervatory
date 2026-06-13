@@ -10,6 +10,7 @@ import type {
   RegimeOverviewResponse,
   RegimeSnapshot,
   BenchmarkResult,
+  SignalHorizonBenchmarkResult,
   ValidationRun,
 } from "@/lib/types";
 
@@ -151,6 +152,19 @@ export function useBenchmarkResults() {
       const { data } = await api.get<{ as_of_date: string | null; results: BenchmarkResult[] }>(
         "/benchmarks",
       );
+      return data.results;
+    },
+  });
+}
+
+export function useSignalHorizonBenchmarkResults() {
+  return useQuery({
+    queryKey: ["signal-horizon-benchmark-results"],
+    queryFn: async () => {
+      const { data } = await api.get<{
+        as_of_date: string | null;
+        results: SignalHorizonBenchmarkResult[];
+      }>("/benchmarks/signal-horizon");
       return data.results;
     },
   });

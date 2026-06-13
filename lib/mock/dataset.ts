@@ -39,6 +39,7 @@ import type {
   RegimeLabel,
   RegimeSnapshot,
   ResearchEvidenceItem,
+  SignalHorizonBenchmarkResult,
   TrendAdjustmentDirection,
   TrendSignal,
   ValidationResult,
@@ -843,6 +844,76 @@ export function getBenchmarkResults(): BenchmarkResult[] {
         created_at: `${AS_OF}T09:00:00Z`,
         updated_at: `${AS_OF}T09:00:00Z`,
       } satisfies BenchmarkResult;
+    });
+  });
+}
+
+export function getSignalHorizonBenchmarkResults(): SignalHorizonBenchmarkResult[] {
+  const d = dataset();
+  const tenors = [
+    "tenor_le_14d",
+    "tenor_le_30d",
+    "tenor_le_60d",
+    "tenor_le_90d",
+    "tenor_le_180d",
+    "tenor_gt_180d",
+  ] as const;
+  return d.pairs.slice(0, 10).flatMap((pair, pairIndex) => {
+    const validation = d.validations[pair];
+    const snapshot = d.snapshots[pair];
+    const horizon = validation.result.expected_signal_horizon_days;
+    const maturity = validation.result.expected_signal_valid_until;
+    return tenors.map((tenorKey, tenorIndex) => {
+      const quant = validation.result.deterministic_trend_aware_multipliers[tenorKey];
+      const llm = validation.result.llm_recommended_trend_aware_multipliers[tenorKey];
+      const baseline = snapshot.current_volatility_readings.vol_252d;
+      const rng = mulberry32(hashSeed(`${pair}:${tenorKey}:signal-horizon`));
+      const realized = baseline * quant * (0.78 + rng() * 0.48);
+      const quantImplied = baseline * quant;
+      const llmImplied = baseline * llm;
+      const quantError = Math.abs(realized - quantImplied);
+      const llmError = Math.abs(realized - llmImplied);
+      return {
+        id: `signal_horizon_${pair}_${tenorKey}`,
+        llm_validation_run_id: validation.id,
+        market_regime_snapshot_id: null,
+        pair_code: pair,
+        as_of_date: validation.as_of_date,
+        expected_signal_horizon_days: horizon,
+        expected_signal_valid_until: maturity,
+        maturity_date: maturity,
+        evaluated_at: `${AS_OF}T09:${String(pairIndex + tenorIndex).padStart(2, "0")}:00Z`,
+        tenor_key: tenorKey,
+        quant_multiplier: quant,
+        llm_multiplier: llm,
+        baseline_vol_252d: baseline,
+        quant_implied_vol: quantImplied,
+        llm_implied_vol: llmImplied,
+        realized_vol: realized,
+        realized_abs_return: realized / Math.sqrt(252 / Math.max(horizon, 1)),
+        realized_max_abs_return: realized / Math.sqrt(252 / Math.max(horizon, 1)) * 1.25,
+        quant_abs_error: quantError,
+        llm_abs_error: llmError,
+        llm_lift: quantError - llmError,
+        llm_direction: validation.result.trend_adjustment_direction,
+        direction_hit:
+          validation.result.trend_adjustment_direction === "increase"
+            ? realized > quantImplied
+            : validation.result.trend_adjustment_direction === "decrease"
+              ? realized < quantImplied
+              : Math.abs(realized - quantImplied) <= quantImplied * 0.05,
+        signal_still_valid: llmError <= quantError,
+        quant_undercovered: realized > quantImplied,
+        llm_undercovered: realized > llmImplied,
+        observation_count: Math.max(2, Math.round(horizon * 0.72)),
+        memory_item_count: validation.prior_validation_context.item_count,
+        scoring_notes: {
+          fixture: true,
+          method: "realized_forward_vol_over_llm_declared_signal_horizon",
+        },
+        created_at: `${AS_OF}T09:00:00Z`,
+        updated_at: `${AS_OF}T09:00:00Z`,
+      } satisfies SignalHorizonBenchmarkResult;
     });
   });
 }

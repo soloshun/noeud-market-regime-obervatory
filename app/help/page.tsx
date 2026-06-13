@@ -218,6 +218,18 @@ export default function HelpPage() {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Signal-Life Benchmark</CardTitle>
+              <CardDescription>
+                The LLM declares one expected-valid-until date for the whole overlay.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm leading-relaxed text-muted-foreground">
+              The signal-horizon evaluator waits until that declared date matures, then scores the same realized window across every trend-aware tenor: ≤14d, ≤30d, ≤60d, ≤90d, ≤180d, and &gt;180d. This tests whether the LLM&apos;s self-declared signal life was useful, while still showing which tenor buckets benefited or worsened.
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {BENCHMARK_METRICS.map((m) => (
               <Card key={m.name}>
@@ -239,7 +251,7 @@ export default function HelpPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="text-sm leading-relaxed text-muted-foreground">
-              Prefect runs the benchmark evaluator weekly by default. The flow scans stored validation runs, writes matured results to the benchmark table, and leaves fresh windows pending until their future prices exist. Manual dry-runs remain useful for debugging, but the deployed workflow is the source of the ongoing Performance Lab feed.
+              Prefect runs the fixed-tenor benchmark evaluator weekly by default. The signal-horizon evaluator runs Monday, Wednesday, and Friday at 09:00 Accra time because LLM signal lives can mature in only a few days. Both flows scan stored validation runs, write matured results to their benchmark tables, and leave fresh windows pending until their future prices exist.
             </CardContent>
           </Card>
         </TabsContent>

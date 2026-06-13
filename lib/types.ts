@@ -379,6 +379,40 @@ export type BenchmarkResult = {
   updated_at?: string;
 };
 
+export type SignalHorizonBenchmarkResult = {
+  id: string;
+  llm_validation_run_id: string | null;
+  market_regime_snapshot_id: string | null;
+  pair_code: string;
+  as_of_date: string;
+  expected_signal_horizon_days: number;
+  expected_signal_valid_until: string;
+  maturity_date: string;
+  evaluated_at: string;
+  tenor_key: keyof TrendAwareMultiplierMap;
+  quant_multiplier: number;
+  llm_multiplier: number;
+  baseline_vol_252d: number;
+  quant_implied_vol: number;
+  llm_implied_vol: number;
+  realized_vol: number;
+  realized_abs_return: number;
+  realized_max_abs_return: number;
+  quant_abs_error: number;
+  llm_abs_error: number;
+  llm_lift: number;
+  llm_direction: TrendAdjustmentDirection;
+  direction_hit: boolean;
+  signal_still_valid: boolean;
+  quant_undercovered: boolean;
+  llm_undercovered: boolean;
+  observation_count: number;
+  memory_item_count: number;
+  scoring_notes: Record<string, unknown> | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
 // --- Aggregate / list responses ------------------------------------------
 
 export type RegimeOverviewResponse = {
