@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:mock": "OBSERVATORY_DATA_SOURCE=mock next dev",
+    "dev:supabase": "OBSERVATORY_DATA_SOURCE=supabase next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

@@ -62,11 +62,11 @@ const PIPELINE = [
 const BENCHMARK_METRICS = [
   {
     name: "Quant implied volatility",
-    body: "The frozen deterministic baseline: vol_252d multiplied by the quant trend-aware multiplier for each tenor.",
+    body: "The primary benchmark multiplies each tenor-matched volatility curve point by its deterministic trend-aware multiplier. The 14d point is variance-interpolated between 7d and 30d.",
   },
   {
     name: "LLM implied volatility",
-    body: "The same vol_252d baseline multiplied by the LLM-recommended multiplier. This keeps the comparison focused on the overlay decision, not a different volatility anchor.",
+    body: "The exact same tenor baseline multiplied by the LLM recommendation. Only the multiplier changes, so the comparison isolates the overlay decision.",
   },
   {
     name: "Realized forward volatility",
@@ -75,6 +75,10 @@ const BENCHMARK_METRICS = [
   {
     name: "LLM lift",
     body: "Quant absolute error minus LLM absolute error. Positive lift means the LLM overlay was closer to the realized outcome.",
+  },
+  {
+    name: "QLIKE lift",
+    body: "Quant QLIKE loss minus LLM QLIKE loss on forecast variance. Positive is better. It penalizes poor variance calibration and severe underforecasting, so an always-lower overlay cannot rely on MAE alone.",
   },
   {
     name: "Direction hit",
@@ -214,7 +218,7 @@ export default function HelpPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="text-sm leading-relaxed text-muted-foreground">
-              Each LLM validation freezes the quant multipliers, the LLM-recommended multipliers, the baseline 252d volatility, and the validation date. The benchmark evaluator waits for each tenor to mature, calculates realized forward volatility, and compares the quant-implied and LLM-implied levels against what actually happened.
+              Each LLM validation freezes both multiplier ladders, the full tenor volatility curve, and the validation date. The primary evaluator waits for each tenor to mature, calculates realized forward volatility, and compares tenor-matched quant and LLM forecasts against what actually happened. The older 252d-anchor method remains available only as a diagnostic.
             </CardContent>
           </Card>
 
@@ -226,7 +230,7 @@ export default function HelpPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="text-sm leading-relaxed text-muted-foreground">
-              The signal-horizon evaluator waits until that declared date matures, then scores the same realized window across every trend-aware tenor: ≤14d, ≤30d, ≤60d, ≤90d, ≤180d, and &gt;180d. This tests whether the LLM&apos;s self-declared signal life was useful, while still showing which tenor buckets benefited or worsened.
+              The signal-horizon evaluator waits until that declared date matures, then checks whether the overlay helped during that short window across the multiplier ladder. This is a secondary consistency diagnostic. A three-day signal life does not prove a 90d or 180d forecast; only the corresponding matured fixed-tenor benchmark can do that.
             </CardContent>
           </Card>
 

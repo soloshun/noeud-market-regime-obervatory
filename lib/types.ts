@@ -7,7 +7,7 @@
  *  - the LLM validation contracts in `intelligence/models.py`
  *
  * The frontend reads these shapes from same-origin Next.js route handlers
- * (currently fixture-backed, later backed by Supabase). Keeping the types
+ * (Supabase-backed in deployed environments, fixture-backed only in explicit local mode). Keeping the types
  * aligned to the backend payload makes the eventual swap a drop-in change.
  */
 
@@ -183,6 +183,9 @@ export type ResearchEvidenceItem = {
   published_at: string | null;
   excerpt: string;
   relevance_score: number;
+  retrieved_at?: string | null;
+  source_tier?: string | null;
+  citation_origin?: string | null;
 };
 
 export type ResearchBrief = {
@@ -223,7 +226,13 @@ export type TrendAdjustmentDirection =
   | "hold"
   | "insufficient_evidence";
 
-export type ValidationRunSource = "scheduled" | "manual" | "backfill" | "test" | "unknown";
+export type ValidationRunSource =
+  | "scheduled"
+  | "manual"
+  | "backfill"
+  | "experiment"
+  | "test"
+  | "unknown";
 
 export type TrendAwareMultiplierMap = {
   tenor_le_14d: number;
@@ -312,6 +321,7 @@ export type ValidationResult = {
   expected_signal_horizon_days: number;
   expected_signal_valid_until: string;
   signal_horizon_rationale: string;
+  output_quality_flags: string[];
   supporting_points: string[];
   contradicting_points: string[];
   watch_items: string[];
@@ -330,6 +340,10 @@ export type ValidationRun = {
   model_name: string;
   prompt_version: string | null;
   run_source: ValidationRunSource;
+  experiment_id: string | null;
+  experiment_variant: string | null;
+  research_brief_hash: string | null;
+  is_shadow: boolean;
   confidence: number | null;
   rationale: string | null;
   market_sentiment: MarketSentiment | null;
@@ -355,12 +369,17 @@ export type BenchmarkResult = {
   pair_code: string;
   as_of_date: string;
   maturity_date: string;
+  evaluation_market_date: string | null;
+  maturity_rolled: boolean;
   evaluated_at: string;
   tenor_key: keyof TrendAwareMultiplierMap;
+  benchmark_method_version: string;
   horizon_days: number;
   quant_multiplier: number;
   llm_multiplier: number;
   baseline_vol_252d: number;
+  baseline_vol: number | null;
+  baseline_source: string | null;
   quant_implied_vol: number;
   llm_implied_vol: number;
   realized_vol: number;
@@ -374,6 +393,7 @@ export type BenchmarkResult = {
   quant_undercovered: boolean;
   llm_undercovered: boolean;
   observation_count: number;
+  is_canonical: boolean;
   scoring_notes: Record<string, unknown> | null;
   created_at?: string;
   updated_at?: string;
@@ -388,11 +408,16 @@ export type SignalHorizonBenchmarkResult = {
   expected_signal_horizon_days: number;
   expected_signal_valid_until: string;
   maturity_date: string;
+  evaluation_market_date: string | null;
+  maturity_rolled: boolean;
   evaluated_at: string;
   tenor_key: keyof TrendAwareMultiplierMap;
+  benchmark_method_version: string;
   quant_multiplier: number;
   llm_multiplier: number;
   baseline_vol_252d: number;
+  baseline_vol: number | null;
+  baseline_source: string | null;
   quant_implied_vol: number;
   llm_implied_vol: number;
   realized_vol: number;
@@ -404,13 +429,40 @@ export type SignalHorizonBenchmarkResult = {
   llm_direction: TrendAdjustmentDirection;
   direction_hit: boolean;
   signal_still_valid: boolean;
+  llm_outperformed_quant: boolean | null;
   quant_undercovered: boolean;
   llm_undercovered: boolean;
   observation_count: number;
   memory_item_count: number;
+  is_canonical: boolean;
   scoring_notes: Record<string, unknown> | null;
   created_at?: string;
   updated_at?: string;
+};
+
+export type BenchmarkEvaluationStatus = {
+  id: string;
+  llm_validation_run_id: string;
+  pair_code: string;
+  as_of_date: string;
+  benchmark_kind: "fixed_tenor" | "signal_horizon";
+  benchmark_method_version: string;
+  tenor_key: keyof TrendAwareMultiplierMap;
+  declared_maturity_date: string | null;
+  evaluation_market_date: string | null;
+  status: "scored" | "pending" | "invalid" | "not_applicable";
+  reason: string | null;
+  observation_count: number;
+  is_canonical: boolean;
+  evaluated_at: string;
+};
+
+export type ObservatoryDataSourceStatus = {
+  source: "supabase" | "mock";
+  mode: string;
+  configured: boolean;
+  production_safe: boolean;
+  checked_at: string;
 };
 
 // --- Aggregate / list responses ------------------------------------------

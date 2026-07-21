@@ -3,12 +3,14 @@
 import * as React from "react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { MoonIcon, SunIcon } from "lucide-react";
+import { DatabaseIcon, MoonIcon, SunIcon, TriangleAlertIcon } from "lucide-react";
 
 import { PairSwitcher } from "@/components/regime/pair-switcher";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useDataSourceStatus } from "@/hooks/use-regime";
+import { cn } from "@/lib/utils";
 
 const TITLES: Record<string, string> = {
   pairs: "Pair Review",
@@ -21,6 +23,7 @@ const TITLES: Record<string, string> = {
 export function SiteHeader() {
   const pathname = usePathname();
   const { resolvedTheme, setTheme } = useTheme();
+  const sourceQuery = useDataSourceStatus();
 
   const segments = pathname.split("/").filter(Boolean);
   const root = segments[0];
@@ -39,6 +42,30 @@ export function SiteHeader() {
         <Separator orientation="vertical" className="mx-2 h-4 data-vertical:self-auto" />
         <h1 className="text-sm font-medium md:text-base">{title}</h1>
         <div className="ml-auto flex items-center gap-2">
+          {sourceQuery.data && (
+            <span
+              title={`${sourceQuery.data.source} · checked ${new Date(sourceQuery.data.checked_at).toLocaleString()}`}
+              className={cn(
+                "hidden items-center gap-1.5 rounded border px-2 py-1 font-mono text-[11px] uppercase sm:flex",
+                sourceQuery.data.source === "supabase"
+                  ? "border-emerald-500/25 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400"
+                  : "border-amber-500/25 bg-amber-500/8 text-amber-700 dark:text-amber-300",
+              )}
+            >
+              {sourceQuery.data.source === "supabase" ? (
+                <DatabaseIcon className="size-3" />
+              ) : (
+                <TriangleAlertIcon className="size-3" />
+              )}
+              {sourceQuery.data.source}
+              <span className="text-[10px] opacity-70">
+                {new Date(sourceQuery.data.checked_at).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            </span>
+          )}
           {detail && (
             <React.Suspense fallback={null}>
               <PairSwitcher

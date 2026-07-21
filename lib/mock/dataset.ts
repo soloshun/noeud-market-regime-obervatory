@@ -498,6 +498,7 @@ function buildValidationRun(snapshot: RegimeSnapshot): ValidationRun {
     expected_signal_valid_until: validUntil.toISOString().slice(0, 10),
     signal_horizon_rationale:
       "The cited policy and liquidity drivers are expected to remain relevant for a few market sessions before a fresh news read is needed.",
+    output_quality_flags: [],
     supporting_points: [
       `Realized vol acceleration of ${snapshot.current_volatility_readings.accel_vs_252d.toFixed(2)}x is consistent with the ${regime} band.`,
       `${cbank[quote] ?? "Central-bank"} guidance does not contradict the current read.`,
@@ -593,6 +594,10 @@ function buildValidationRun(snapshot: RegimeSnapshot): ValidationRun {
     model_name: "anthropic/claude-sonnet-4.5",
     prompt_version: "market-regime-validation-v1",
     run_source: "scheduled",
+    experiment_id: null,
+    experiment_variant: null,
+    research_brief_hash: null,
+    is_shadow: true,
     confidence,
     rationale: result.rationale,
     market_sentiment: result.market_sentiment,
@@ -795,7 +800,10 @@ export function getBenchmarkResults(): BenchmarkResult[] {
     return tenors.map(([tenorKey, horizon], tenorIndex) => {
       const quant = validation.result.deterministic_trend_aware_multipliers[tenorKey];
       const llm = validation.result.llm_recommended_trend_aware_multipliers[tenorKey];
-      const baseline = snapshot.current_volatility_readings.vol_252d;
+      const structure = snapshot.volatility_term_structure;
+      const baseline = tenorKey === "tenor_le_14d"
+        ? Math.sqrt((16 / 23) * structure.tenor_le_7d ** 2 + (7 / 23) * structure.tenor_le_30d ** 2)
+        : structure[tenorKey];
       const rng = mulberry32(hashSeed(`${pair}:${tenorKey}:benchmark`));
       const realized = baseline * quant * (0.82 + rng() * 0.42);
       const quantImplied = baseline * quant;
@@ -811,12 +819,17 @@ export function getBenchmarkResults(): BenchmarkResult[] {
         pair_code: pair,
         as_of_date: validation.as_of_date,
         maturity_date: maturity.toISOString().slice(0, 10),
+        evaluation_market_date: maturity.toISOString().slice(0, 10),
+        maturity_rolled: false,
         evaluated_at: `${AS_OF}T09:${String(pairIndex + tenorIndex).padStart(2, "0")}:00Z`,
         tenor_key: tenorKey,
+        benchmark_method_version: "tenor_matched_v2",
         horizon_days: horizon,
         quant_multiplier: quant,
         llm_multiplier: llm,
         baseline_vol_252d: baseline,
+        baseline_vol: baseline,
+        baseline_source: tenorKey === "tenor_le_14d" ? "variance_interp_7d_30d_at_14d" : tenorKey,
         quant_implied_vol: quantImplied,
         llm_implied_vol: llmImplied,
         realized_vol: realized,
@@ -835,6 +848,7 @@ export function getBenchmarkResults(): BenchmarkResult[] {
         quant_undercovered: realized > quantImplied,
         llm_undercovered: realized > llmImplied,
         observation_count: Math.max(2, Math.round(horizon * 0.72)),
+        is_canonical: true,
         scoring_notes: {
           fixture: true,
           expected_signal_horizon_days: validation.result.expected_signal_horizon_days,
@@ -866,7 +880,10 @@ export function getSignalHorizonBenchmarkResults(): SignalHorizonBenchmarkResult
     return tenors.map((tenorKey, tenorIndex) => {
       const quant = validation.result.deterministic_trend_aware_multipliers[tenorKey];
       const llm = validation.result.llm_recommended_trend_aware_multipliers[tenorKey];
-      const baseline = snapshot.current_volatility_readings.vol_252d;
+      const structure = snapshot.volatility_term_structure;
+      const baseline = tenorKey === "tenor_le_14d"
+        ? Math.sqrt((16 / 23) * structure.tenor_le_7d ** 2 + (7 / 23) * structure.tenor_le_30d ** 2)
+        : structure[tenorKey];
       const rng = mulberry32(hashSeed(`${pair}:${tenorKey}:signal-horizon`));
       const realized = baseline * quant * (0.78 + rng() * 0.48);
       const quantImplied = baseline * quant;
@@ -882,11 +899,16 @@ export function getSignalHorizonBenchmarkResults(): SignalHorizonBenchmarkResult
         expected_signal_horizon_days: horizon,
         expected_signal_valid_until: maturity,
         maturity_date: maturity,
+        evaluation_market_date: maturity,
+        maturity_rolled: false,
         evaluated_at: `${AS_OF}T09:${String(pairIndex + tenorIndex).padStart(2, "0")}:00Z`,
         tenor_key: tenorKey,
+        benchmark_method_version: "tenor_matched_v2",
         quant_multiplier: quant,
         llm_multiplier: llm,
         baseline_vol_252d: baseline,
+        baseline_vol: baseline,
+        baseline_source: tenorKey === "tenor_le_14d" ? "variance_interp_7d_30d_at_14d" : tenorKey,
         quant_implied_vol: quantImplied,
         llm_implied_vol: llmImplied,
         realized_vol: realized,
@@ -903,10 +925,12 @@ export function getSignalHorizonBenchmarkResults(): SignalHorizonBenchmarkResult
               ? realized < quantImplied
               : Math.abs(realized - quantImplied) <= quantImplied * 0.05,
         signal_still_valid: llmError <= quantError,
+        llm_outperformed_quant: llmError <= quantError,
         quant_undercovered: realized > quantImplied,
         llm_undercovered: realized > llmImplied,
         observation_count: Math.max(2, Math.round(horizon * 0.72)),
         memory_item_count: validation.prior_validation_context.item_count,
+        is_canonical: true,
         scoring_notes: {
           fixture: true,
           method: "realized_forward_vol_over_llm_declared_signal_horizon",

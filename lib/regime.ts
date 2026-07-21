@@ -165,6 +165,7 @@ export const VALIDATION_RUN_SOURCE_LABELS: Record<ValidationRunSource, string> =
   scheduled: "Scheduled",
   manual: "Manual",
   backfill: "Backfill",
+  experiment: "Experiment",
   test: "Test",
   unknown: "Unknown",
 };
