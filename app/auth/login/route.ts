@@ -1,7 +1,12 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { SESSION_COOKIE_NAME, createSessionToken, isPasswordValid } from "@/lib/auth";
+import {
+  SESSION_COOKIE_NAME,
+  SESSION_TTL_SECONDS,
+  createSessionToken,
+  isPasswordValid,
+} from "@/lib/auth";
 
 function normalizeNextPath(value: string | null): string {
   if (!value || !value.startsWith("/") || value.startsWith("/login")) return "/";
@@ -25,7 +30,7 @@ export async function POST(request: Request) {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 12,
+    maxAge: SESSION_TTL_SECONDS,
   });
 
   redirect(nextPath);

@@ -10,6 +10,8 @@ import type {
   RegimeOverviewResponse,
   RegimeSnapshot,
   BenchmarkResult,
+  BenchmarkEvaluationStatus,
+  ObservatoryDataSourceStatus,
   SignalHorizonBenchmarkResult,
   ValidationRun,
 } from "@/lib/types";
@@ -167,5 +169,29 @@ export function useSignalHorizonBenchmarkResults() {
       }>("/benchmarks/signal-horizon");
       return data.results;
     },
+  });
+}
+
+export function useBenchmarkEvaluationStatuses() {
+  return useQuery({
+    queryKey: ["benchmark-evaluation-statuses"],
+    queryFn: async () => {
+      const { data } = await api.get<{
+        as_of_date: string | null;
+        statuses: BenchmarkEvaluationStatus[];
+      }>("/benchmarks/status");
+      return data.statuses;
+    },
+  });
+}
+
+export function useDataSourceStatus() {
+  return useQuery({
+    queryKey: ["observatory-data-source"],
+    queryFn: async () => {
+      const { data } = await api.get<ObservatoryDataSourceStatus>("/system/status");
+      return data;
+    },
+    staleTime: 60_000,
   });
 }

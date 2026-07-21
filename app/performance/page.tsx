@@ -1,10 +1,11 @@
 "use client";
 
 import { EmptyState, SectionTitle } from "@/components/regime/primitives";
-import { PerformanceLab } from "@/components/regime/performance-lab";
+import { PerformanceLabV2 } from "@/components/regime/performance-lab-v2";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useBenchmarkResults,
+  useBenchmarkEvaluationStatuses,
   useSignalHorizonBenchmarkResults,
   useValidationRuns,
 } from "@/hooks/use-regime";
@@ -13,8 +14,9 @@ export default function PerformancePage() {
   const query = useBenchmarkResults();
   const signalHorizonQuery = useSignalHorizonBenchmarkResults();
   const validationsQuery = useValidationRuns();
-  const isLoading = query.isLoading || signalHorizonQuery.isLoading || validationsQuery.isLoading;
-  const isError = query.isError || signalHorizonQuery.isError || validationsQuery.isError;
+  const statusesQuery = useBenchmarkEvaluationStatuses();
+  const isLoading = query.isLoading || signalHorizonQuery.isLoading || validationsQuery.isLoading || statusesQuery.isLoading;
+  const isError = query.isError || signalHorizonQuery.isError || validationsQuery.isError || statusesQuery.isError;
 
   return (
     <>
@@ -32,11 +34,15 @@ export default function PerformancePage() {
           <Skeleton className="h-[460px] rounded-xl" />
         </>
       ) : isError ? (
-        <EmptyState title="Benchmark data is unavailable" description="Could not reach the benchmark API." />
+        <EmptyState
+          title="Benchmark data is unavailable"
+          description="Supabase did not satisfy the benchmark contract. Apply the performance-stabilization migration or inspect the API error before reviewing results."
+        />
       ) : (
-        <PerformanceLab
+        <PerformanceLabV2
           results={query.data ?? []}
           signalHorizonResults={signalHorizonQuery.data ?? []}
+          statuses={statusesQuery.data ?? []}
           validations={validationsQuery.data ?? []}
         />
       )}

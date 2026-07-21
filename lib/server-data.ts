@@ -14,6 +14,7 @@ import {
 import type {
   CompositeSignal,
   BenchmarkResult,
+  BenchmarkEvaluationStatus,
   LLMCallRecord,
   ProviderRun,
   RawPriceObservation,
@@ -26,6 +27,7 @@ import type {
   PriorValidationContext,
   PriorValidationContextItem,
   SignalHorizonBenchmarkResult,
+  ObservatoryDataSourceStatus,
   TrendAdjustmentDirection,
   TrendAwareMultiplierMap,
   ValidationResult,
@@ -73,6 +75,10 @@ type ValidationRow = {
   model_name: string;
   prompt_version: string | null;
   run_source: string | null;
+  experiment_id: string | null;
+  experiment_variant: string | null;
+  research_brief_hash: string | null;
+  is_shadow: boolean | null;
   output_payload: JsonRecord | null;
   rationale: string | null;
   confidence: number | null;
@@ -96,11 +102,19 @@ type SupabaseConfig = {
   key: string;
 };
 
-const FALLBACK_WARNING =
-  "Using fixture data because Supabase is not configured or did not respond.";
+type DataSourceMode = "auto" | "supabase" | "mock";
 
-function dataSourceMode() {
-  return (process.env.OBSERVATORY_DATA_SOURCE ?? "auto").trim().toLowerCase();
+function dataSourceMode(): DataSourceMode {
+  const configured = process.env.OBSERVATORY_DATA_SOURCE?.trim().toLowerCase();
+  if (configured === "auto" || configured === "supabase" || configured === "mock") {
+    return configured;
+  }
+  if (configured) {
+    throw new Error(
+      `Invalid OBSERVATORY_DATA_SOURCE=${configured}; expected auto, supabase, or mock`,
+    );
+  }
+  return process.env.NODE_ENV === "production" ? "supabase" : "mock";
 }
 
 function supabaseConfig(): SupabaseConfig | null {
@@ -154,13 +168,7 @@ async function supabaseGet<T>(
 
 async function withFallback<T>(loadSupabase: () => Promise<T>, loadMock: () => T): Promise<T> {
   if (!shouldUseSupabase()) return loadMock();
-  try {
-    return await loadSupabase();
-  } catch (error) {
-    if (dataSourceMode() === "supabase") throw error;
-    console.warn(FALLBACK_WARNING, error);
-    return loadMock();
-  }
+  return loadSupabase();
 }
 
 function displayPair(pair: string) {
@@ -212,7 +220,7 @@ function isValidationStatus(value: unknown): value is ValidationStatus {
 }
 
 function validationRunSource(value: unknown): ValidationRunSource {
-  if (["scheduled", "manual", "backfill", "test"].includes(String(value))) {
+  if (["scheduled", "manual", "backfill", "experiment", "test"].includes(String(value))) {
     return value as ValidationRunSource;
   }
   return "unknown";
@@ -496,6 +504,7 @@ function validationResultFromPayload(
       record.signal_horizon_rationale,
       "No signal horizon rationale was stored for this validation run.",
     ),
+    output_quality_flags: asArray<string>(record.output_quality_flags),
     supporting_points: asArray<string>(record.supporting_points),
     contradicting_points: asArray<string>(record.contradicting_points),
     watch_items: asArray<string>(record.watch_items),
@@ -531,6 +540,10 @@ function validationFromRow(row: ValidationRow): ValidationRun {
     model_name: row.model_name,
     prompt_version: row.prompt_version,
     run_source: validationRunSource(row.run_source),
+    experiment_id: row.experiment_id,
+    experiment_variant: row.experiment_variant,
+    research_brief_hash: row.research_brief_hash,
+    is_shadow: row.is_shadow ?? true,
     confidence: row.confidence,
     rationale: row.rationale,
     market_sentiment: isMarketSentiment(row.market_sentiment) ? row.market_sentiment : null,
@@ -754,4 +767,38 @@ export async function getSignalHorizonBenchmarkResults(): Promise<SignalHorizonB
     },
     () => getMockSignalHorizonBenchmarkResults(),
   );
+}
+
+export async function getBenchmarkEvaluationStatuses(): Promise<BenchmarkEvaluationStatus[]> {
+  return withFallback(
+    async () => {
+      const rows = await supabaseGet<BenchmarkEvaluationStatus>(
+        "benchmark_evaluation_statuses",
+        {
+          select: "*",
+          order: "as_of_date.desc",
+          limit: 5000,
+        },
+      );
+      return rows.map((row) => ({
+        ...row,
+        tenor_key: isTrendAwareTenor(row.tenor_key) ? row.tenor_key : "tenor_le_30d",
+      }));
+    },
+    () => [],
+  );
+}
+
+export function getDataSourceStatus(): ObservatoryDataSourceStatus {
+  const mode = dataSourceMode();
+  const configured = supabaseConfig() !== null;
+  const source = shouldUseSupabase() ? "supabase" : "mock";
+  return {
+    source,
+    mode,
+    configured,
+    production_safe:
+      source === "supabase" && configured && process.env.NODE_ENV === "production",
+    checked_at: new Date().toISOString(),
+  };
 }
