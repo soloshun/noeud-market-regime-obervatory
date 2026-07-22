@@ -304,23 +304,23 @@ export function PerformanceLabV2({
         </div>
         <div className="grid gap-2 border-t px-4 py-3 sm:grid-cols-2 lg:grid-cols-5">
           <Select value={model} onValueChange={setModel}>
-            <SelectTrigger><SelectValue placeholder="All scorer models" /></SelectTrigger>
+            <SelectTrigger className="w-full min-w-0" title={model === "all" ? "All scorer models" : model}><SelectValue placeholder="All scorer models" /></SelectTrigger>
             <SelectContent><SelectItem value="all">All scorer models</SelectItem>{models.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
           </Select>
           <Select value={prompt} onValueChange={setPrompt}>
-            <SelectTrigger><SelectValue placeholder="All prompt versions" /></SelectTrigger>
+            <SelectTrigger className="w-full min-w-0" title={prompt === "all" ? "All prompt versions" : prompt}><SelectValue placeholder="All prompt versions" /></SelectTrigger>
             <SelectContent><SelectItem value="all">All prompt versions</SelectItem>{prompts.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
           </Select>
           <Select value={memoryScope} onValueChange={(value) => setMemoryScope(value as MemoryScope)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full min-w-0"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="all">All memory modes</SelectItem><SelectItem value="with_memory">Prior reads used</SelectItem><SelectItem value="without_memory">No prior reads</SelectItem></SelectContent>
           </Select>
           <Select value={runSource} onValueChange={setRunSource}>
-            <SelectTrigger><SelectValue placeholder="All run sources" /></SelectTrigger>
+            <SelectTrigger className="w-full min-w-0"><SelectValue placeholder="All run sources" /></SelectTrigger>
             <SelectContent><SelectItem value="all">All run sources</SelectItem>{runSources.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
           </Select>
           <Select value={regime} onValueChange={setRegime}>
-            <SelectTrigger><SelectValue placeholder="All regimes" /></SelectTrigger>
+            <SelectTrigger className="w-full min-w-0"><SelectValue placeholder="All regimes" /></SelectTrigger>
             <SelectContent><SelectItem value="all">All regimes</SelectItem>{regimes.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
           </Select>
         </div>
